@@ -16237,7 +16237,7 @@ C                 ZX=D(CID2)/D(ZS)
                   ZX      =-1./ZH*CID2(I1(J3))  + 1./ZH*CID2(I1(J3)+1) +
      +                     (1./3.-ZA*ZA)*ZH/2.*D2CID2(I1(J3)) +
      +                     (ZB*ZB-1./3.)*ZH/2.*D2CID2(I1(J3)+1) 
-                  PJIPHI(J3) =-ZPPRIM(J3)*PR(J3)-2.*CPI*CPI*ZFUNC(J3)
+                  PJIPHI(J3) =-ZPPRIM(J3)*PR(J3)+2.*CPI*CPI*ZFUNC(J3)
      &                         /SPSIM*ZCID2(J3)/ZS/PR(J3)*(
      &                         ZFUNCD(J3)*ZCID2(J3) +
      &                         ZFUNC(J3)*ZX )
