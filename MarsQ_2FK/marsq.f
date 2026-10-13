@@ -1613,6 +1613,7 @@ C     STARTING FROM SLEFT (DEFAULT SLEFT=0.0)
      &            ROTEQ(NRP1), ROTEQM(NRP1),
      &            DROTEQ(NRP1),DROTEQM(NRP1),
      &            RHOEQ(NRP1), RHOEQM(NRP1) )
+         OMEGASE = 0.
          TROTI  = 0.
          TROTM  = 0.
          TDROTI = 0.
