@@ -18148,7 +18148,16 @@ C        TO BE ADDED LATER
          CLOSE(99)
          ZTEMP = RPRV(1)
          IF (NEXPV.EQ.1) ROTWE0 = ZTEMP*ZTAUA0 
-         RPRV  = ROTWE0*RPRV/ZTEMP
+C        A VANISHING PROFILE (PROFWE=0) HAS NO SHAPE TO NORMALISE:
+C        KEEP IT ZERO INSTEAD OF 0/0 = NaN
+         IF (ZTEMP.EQ.0.0) THEN
+            IF (MAXVAL(ABS(RPRV)).GT.0.0) STOP
+     &         'NPROFWE=4: PROFWE.IN FIRST VALUE ZERO, PROFILE NOT'
+            ROTWE0 = 0.0
+            RPRV   = 0.0
+         ELSE
+            RPRV  = ROTWE0*RPRV/ZTEMP
+         ENDIF
          IF (IRAD.EQ.1) THEN
             SR  = CS(1:NRP1)
             SRM = CSM(1:NRP1)
@@ -18174,7 +18183,11 @@ C        TO BE ADDED LATER
          ENDDO
          CLOSE(99)
          ZTEMP = MAXVAL(RPRV)
-         RPRV  = ROTWE0*RPRV/ZTEMP
+         IF (ZTEMP.EQ.0.0) THEN
+            RPRV  = 0.0
+         ELSE
+            RPRV  = ROTWE0*RPRV/ZTEMP
+         ENDIF
          IF (IRAD.EQ.1) THEN
             SR  = CS(1:NRP1)
             SRM = CSM(1:NRP1)
