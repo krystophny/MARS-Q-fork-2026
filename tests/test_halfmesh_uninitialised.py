@@ -12,7 +12,7 @@ import subprocess
 import tempfile
 import unittest
 
-ROOT = Path(os.environ.get("MARSQ_ROOT") or Path(__file__).resolve().parents[3])
+ROOT = Path(os.environ.get("MARSQ_ROOT") or Path(__file__).resolve().parents[1])
 MPIF90 = os.environ.get("MPIF90", "mpif90")
 FFLAGS = ("-O2 -fdefault-real-8 -fdefault-double-8 -fopenmp -ffixed-line-length-none "
           "-ffree-line-length-none -fallow-argument-mismatch -std=legacy -w")
