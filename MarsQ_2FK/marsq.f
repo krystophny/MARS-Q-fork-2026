@@ -1307,8 +1307,27 @@ C
      &            RHOU(NRP1), RHOUM(NRP1),
      &            DRHOU(NRP1),DRHOUM(NRP1))
 
-         DPSIDSM = 0.
+C        PAMERA reads element NRP1 of the half-mesh arrays (times a zero
+C        edge weight), but only 1:NR is filled below.  Start from zero:
+C        heap garbage that is NaN/Inf makes 0*x = NaN at the plasma edge.
+         CSE     = 0.
+         CSEM    = 0.
+         T       = 0.
          TM      = 0.
+         PPEQ    = 0.
+         PPEQM   = 0.
+         TP      = 0.
+         TPM     = 0.
+         DPSIDS  = 0.
+         DPSIDSM = 0.
+         PEQ     = 0.
+         PEQM    = 0.
+         ROTP    = 0.
+         ROTPM   = 0.
+         RHOU    = 0.
+         RHOUM   = 0.
+         DRHOU   = 0.
+         DRHOUM  = 0.
       END IF
 
       ALLOCATE(PSIISO(2*NRP1),RTMP(NRP1,NCHI))
