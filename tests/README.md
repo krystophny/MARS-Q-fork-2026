@@ -16,6 +16,7 @@ upstream baseline `8824bb1`:
 | perturbative passive-operator ordering | every final-sweep `KNTV=21` field, including ordinary native `IPERTURB=0`, assembles passive `KPBKEY=1` blocks once before torque; only imported B/X is restored | paired native/reload B/X and DWK equality plus matching nonzero `TORQUENTV.OUT` |
 | MARS-K matrix call contract | all `CALCDWKCOMP` callers pass eight live matrices | debug cached continuation reaches all DWK and torque outputs |
 | validated DWK cache recovery | narrow namelist contract and KJP bypass | failed-after-cache ITER runs resume without coefficient regeneration |
+| DWK Maxwellian tail | compiled native passing/trapped kernels, finite-birth partners, independent analytic Maxwellian quadrature at NEPK=201/401/801, checked bounds | NEPK=401 frozen-field smoke and NEPK=201 torque regression |
 | deterministic frequency diagnostic | `RUU2` is thread-private with its per-surface consumers | repeated OpenMP `FREQUENCIES.OUT` comparison |
 | two-species frequency diagnostic | hot-ion `SLAM0(:,3)` is read only when species three exists | GNU `-fcheck=all` MAST-U run |
 | retained DWK component workspace | idempotent allocation, component-map, and shape contracts | KNTV=21 reaches `TORQUENTV.OUT` after kinetic assembly |
