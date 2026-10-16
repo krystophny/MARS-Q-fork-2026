@@ -2839,7 +2839,7 @@ C     COMPUTE X2U
 
       HCHI = 1./DFLOAT(NCHI)
       DO I=1,NR
-      CTMP1 = ALNORM + RNTOR*ROT(I)*CI
+      CTMP1 = ALNORM + RNTOR*ROTM(I)*CI
       DO MS=1,MSMAX
          X2U(I,MS) = -X2U(I,MS)*DPSIDSM(I)*DROTM(I)*HCHI/CTMP1
       ENDDO
@@ -2847,7 +2847,7 @@ C     COMPUTE X2U
       ENDIF
       
       DO I=1,NR
-      CTMP1 = ALNORM + RNTOR*ROT(I)*CI
+      CTMP1 = ALNORM + RNTOR*ROTM(I)*CI
       DO MS=1,MSMAX
          X2U(I,MS) = X2U(I,MS) + V2U(I,MS)/CTMP1
       ENDDO
@@ -2867,6 +2867,7 @@ C     COMPUTE X3U
       ENDDO
       ENDDO
       
+      HCHI = 2.*PI/DFLOAT(NCHI)
       DO J=1,NCHI
       DO MS=1,MSMAX
          CTMP1 = EXP(-CI*RM(MS,2)*(J-1)*HCHI)
@@ -2878,7 +2879,7 @@ C     COMPUTE X3U
 
       HCHI = 1./DFLOAT(NCHI)
       DO I=1,NR
-      CTMP1 = ALNORM + RNTOR*ROT(I)*CI
+      CTMP1 = ALNORM + RNTOR*ROTM(I)*CI
       DO MS=1,MSMAX
          X3U(I,MS) = X3U(I,MS)*TM(I)*DROTM(I)*HCHI/CTMP1
       ENDDO
@@ -2886,7 +2887,7 @@ C     COMPUTE X3U
       ENDIF
       
       DO I=1,NR
-      CTMP1 = ALNORM + RNTOR*ROT(I)*CI
+      CTMP1 = ALNORM + RNTOR*ROTM(I)*CI
       DO MS=1,MSMAX
          X3U(I,MS) = X3U(I,MS) + V3U(I,MS)/CTMP1
       ENDDO
