@@ -11,13 +11,14 @@ module pams_global_csc
     real(dp), parameter, public :: pams_csc_tolerance = 1.0e-11_dp
     public :: pams_csc_pack, pams_csc_solve, pams_csc_errors
 contains
-    subroutine pams_csc_pack(md, my, nd, a, b, c, d, e, f, g, h, matrix, ierr)
+    subroutine pams_csc_pack(md, my, nd, a, b, c, d, e, f, g, h, matrix, ierr, report_unit)
         integer, intent(in) :: md, my, nd
         complex(dp), intent(in) :: a(md, md, *), b(md, md, *), c(md, md, *)
         complex(dp), intent(in) :: d(my, my, *), e(md, my, *), f(my, md, *)
         complex(dp), intent(in) :: g(my, md, *), h(md, my, *)
         type(csc_z_t), intent(out) :: matrix
         integer, intent(out) :: ierr
+        integer, intent(in), optional :: report_unit
         integer(int64), allocatable :: counts(:)
         integer(int64) :: size64, total
         integer :: n, col, k, j, stat
@@ -31,6 +32,8 @@ contains
         size64 = int(nd, int64)*(int(md, int64) + my) + md
         if (size64 > huge(n) - 1_int64 .or. &
             int(md, int64) + my > huge(n)) then
+            if (present(report_unit)) write(report_unit, *) &
+                'PAMS counted original dimension exceeds CSC32:', size64
             ierr = 7
             return
         end if
@@ -50,14 +53,17 @@ contains
             counts(col) = p
         end do
         !$omp end parallel do
+        total = sum(counts)
+        if (present(report_unit)) write(report_unit, *) &
+            'PAMS counted original matrix n,nnz:', size64, total
+        if (total > int(huge(n), int64) - 1_int64) then
+            ierr = 7
+            return
+        end if
         total = 1_int64
         do col = 1, n
             matrix%col_ptr(col) = int(total)
             total = total + counts(col)
-            if (total > huge(n)) then
-                ierr = 7
-                return
-            end if
         end do
         matrix%col_ptr(n + 1) = int(total)
         matrix%nrow = n
@@ -203,7 +209,7 @@ contains
         type(sparse_factor_stats_t) :: stats
         complex(dp), allocatable :: rhs(:), solution(:)
         integer :: k, offset, n, stat
-        call pams_csc_pack(md, my, nd, a, b, c, d, e, f, g, h, matrix, ierr)
+        call pams_csc_pack(md, my, nd, a, b, c, d, e, f, g, h, matrix, ierr, report_unit)
         if (ierr /= 0) return
         if (any(.not. ieee_is_finite(real(matrix%val, dp))) .or. &
             any(.not. ieee_is_finite(aimag(matrix%val)))) then
