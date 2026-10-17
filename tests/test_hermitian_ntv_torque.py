@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """KNTV=21 torque from the same-drive (Hermitian) kinetic work.
 
-The NTV torque is proportional to Im(dW_k).  KJPFILL forms the non-adiabatic pressures from
+The NTV torque is n Im(dW_k).  KJPFILL forms the non-adiabatic pressures from
 the KH drive Hbar of the solved perturbed field.  Paired with that same drive,
 Im(dW_k) is Im(K) rho |Hbar|^2 (rho = 1/omega_b for passing orbits): zero for a
 reactive kernel, and independent of the displacement-based test rows of the
@@ -10,10 +10,7 @@ satisfies ideal induction; otherwise the weak torque, and the torque from its
 dissipative-kernel part, move with the test rows.
 
 Requires gfortran.  KJPFILL, the DWK component cache writer/reader and
-CALCDWKCOMP with its helpers are extracted unchanged from the selected source
-(default: this checkout) and driven by a manufactured case; no plasma inputs
-are needed.  The torque coefficient (n or 2n, issues 21/22) is measured from a
-field that satisfies ideal induction, so the test does not depend on it.
+CALCDWKCOMP with its helpers are extracted unchanged from the selected source.
 One orbit harmonic and one poloidal harmonic on a two-cell radial mesh; the
 drive coefficients differ between surfaces and grids so that the node and
 centre placement of each cell is exercised.
@@ -27,10 +24,12 @@ import tempfile
 import unittest
 
 ROUTINES = ['KJPFILL', 'KHERMFILL', 'KHERMADD', 'KHERMQUAD', 'SETDWKCOMPMAT',
-            'ALLOCATEDWKCOMPMAT', 'DEALLOCATEDWKCOMPMAT',
+            'KDWKDISSIPATIVE', 'ALLOCATEDWKCOMPMAT', 'DEALLOCATEDWKCOMPMAT',
             'WRITE_SURFACE_QUANTITIES', 'READ_SURFACE_QUANTITIES',
             'READ_SURFACE_HERMITIAN', 'FILLMATDWKCOMP', 'CALCPRECOMP',
-            'CALCDWKPROF', 'CALCDWKCOMP']
+            'CALCDWKPROF', 'CALCDWKCOMP', 'WRITEDWKBREAKDOWN',
+            'WRITEDWKDRIVELEDGER', 'CALCDWKDIRECTCHECK',
+            'WRITENATIVEFACTORS', 'WRITENATIVEPRESSURE']
 
 G = 0.8 + 0.3j                      # parallel pressure projection (KG)
 H = [0.5 - 0.2j, 0.3 + 0.4j, -0.6 + 0.1j, 0.2 + 0.5j, 0.4 - 0.3j]  # KH: X1 X2 B1 B2 B3
@@ -63,9 +62,8 @@ LAM, SLAM0, SF0V, B0K = 0.3, 0.5, 0.45 - 0.35j, 1.3
 PTRAPH = 0.9
 RNTOR = -2.0
 PI2 = 2.0 * math.pi * math.pi
-# T = c Im(dW_k).  The source uses c = -2n/(4 pi^2); issue 21 / PR 22 propose
-# -n/(4 pi^2).  The test measures c and accepts either value.
-COEFFICIENTS = (-2.0 * RNTOR / (4.0 * math.pi ** 2), -1.0 * RNTOR / (4.0 * math.pi ** 2))
+# This branch uses T = n Im(dW_k) (upstream issue 21).
+TNORM = -1.0 * RNTOR / (4.0 * math.pi ** 2)
 
 
 def scale(js, kgrid):
@@ -105,7 +103,7 @@ def pressure(kernel, cell):
 
 
 def expected_torque(kernel):
-    return [(-same_drive_work(kernel, c)).imag for c in range(len(CSM))]
+    return [TNORM * (-same_drive_work(kernel, c)).imag for c in range(len(CSM))]
 
 
 def expected_reversal_torque(kernel, kernel0):
@@ -119,7 +117,7 @@ def expected_reversal_torque(kernel, kernel0):
             h02 = abs(f * sum(c * v for c, v in zip(H0, y))) ** 2
             w_cell += w * 0.5 * psi * (kernel * h2 / (2 * OMEGAB)
                                        + (kernel0 - kernel) * h02 / (2 * OMEGAB0))
-        out.append((PI2 * w_cell).imag)
+        out.append(TNORM * (PI2 * w_cell).imag)
     return out
 
 
@@ -151,7 +149,7 @@ def expected_log_torque(kernel, sf0):
             hs2 = abs(f * sum(c * v for c, v in zip(HS, y))) ** 2
             w_cell += w * 0.5 * psi * ((kernel + c2) * h2 / OMEGAB
                                        + (c3 - c2) * hs2 / OMEGABS)
-        out.append((PI2 * w_cell).imag)
+        out.append(TNORM * (PI2 * w_cell).imag)
     return out
 
 
@@ -216,7 +214,7 @@ KXX1=1; KXB1=2; KXV1=3; KYX2=1; KYB2=2; KYB3=3; KYV2=4; KYPR=5
 KYPPARA=6; KYPPERP=7
 RNTOR={RNTOR}d0; KNTV=21; INCKIN=1; KEFORM=2; IFOWP=0; IFOWT=0
 ODWKCOM=.true.; ISWEEP=1; NSWEEP=1; ALPHAD=1; PTRAPH={PTRAPH}d0; CTEDGE=10
-INCDPHI=0; IDIAMB=0; IDIAMTE=0
+INCDPHI=0; IDIAMB=0; IDIAMTE=0; KNTVELL=999
 PSPECIES_AP=0; PSPECIES_AT=0; PSPECIES_NP=0; PSPECIES_NTB=0; PSPECIES_NTD=0
 allocate(HKMIN(NRP1,2),HKMAX(NRP1,2),WFUN(NRP1,2),RLM(1))
 HKMIN=0; HKMAX=1; WFUN=1
@@ -323,7 +321,11 @@ def run_native(source, build_parent, kernel, eps, kernel0=None, sf0=None):
     module = (src / 'kineticm.f').read_text()
     with tempfile.TemporaryDirectory(prefix='ntv-herm-', dir=build_parent) as directory:
         work = Path(directory)
-        (work / 'routines.f').write_text(''.join(extract(text, n) for n in ROUTINES))
+        # DERCHI is reached only by the request-file direct check, never here.
+        stub = '      SUBROUTINE DERCHI(A,B,N,M)\n      STOP \'UNEXPECTED DERCHI\'\n      END\n'
+        observer = extract((src / 'anisotropic.f').read_text(), 'KELLTRACESELECT')
+        (work / 'routines.f').write_text(
+            ''.join(extract(text, n) for n in ROUTINES) + observer + stub)
         clear = CLEAR_WITH if 'HWKC' in module else CLEAR_WITHOUT
         (work / 'clear.f90').write_text(clear)
         (work / 'driver.f90').write_text(driver(kernel, eps, kernel0, sf0).replace('\n& ', ' &\n& '))
@@ -350,7 +352,7 @@ def run_native(source, build_parent, kernel, eps, kernel0=None, sf0=None):
         forms = None
         path = work / 'NTV_TORQUE_FORMS.OUT'
         if path.exists():
-            forms = [[float(x) for x in line.split()[2:4]]
+            forms = [[float(x) for x in line.split()[2:5]]
                      for line in path.read_text().splitlines()
                      if line.strip() and not line.startswith('%')]
         return torque, forms
@@ -359,68 +361,64 @@ def run_native(source, build_parent, kernel, eps, kernel0=None, sf0=None):
 class TestHermitianNTVTorque(unittest.TestCase):
     source = Path(__file__).resolve().parents[1]
     build_parent = Path.cwd()
-    _coefficient = None
 
     def run_case(self, kernel, eps, kernel0=None, sf0=None):
         return run_native(self.source, self.build_parent, kernel, eps, kernel0, sf0)
 
-    def coefficient(self):
-        """c in T = c Im(dW_k), from a field that satisfies ideal induction,
-        where the weak and the same-drive work coincide."""
-        if TestHermitianNTVTorque._coefficient is None:
-            kernel = 0.7 + 0.2j
-            torque, _ = self.run_case(kernel, 0.0)
-            ratios = [t / e for t, e in zip(torque, expected_torque(kernel))]
-            self.assertAlmostEqual(ratios[1] / ratios[0], 1.0, places=12)
-            self.assertTrue(any(abs(ratios[0] / c - 1.0) < 1e-12 for c in COEFFICIENTS),
-                            'unexpected torque coefficient %r' % ratios[0])
-            TestHermitianNTVTorque._coefficient = ratios[0]
-        return TestHermitianNTVTorque._coefficient
-
-    def test_consistent_drive_reproduces_same_drive_torque(self):
-        # Control: passes with the weak contraction as well.
-        c = self.coefficient()
-        kernel = 0.3 + 0.5j
-        torque, _ = self.run_case(kernel, 0.0)
-        for actual, expected in zip(torque, expected_torque(kernel)):
-            self.assertNotEqual(expected, 0.0)
-            self.assertAlmostEqual(actual / (c * expected), 1.0, places=12)
-
     def test_reactive_kernel_gives_zero_torque(self):
-        scale_ = max(abs(t) for t in self.run_case(0.7j, 0.0)[0])
+        scale_ = max(abs(t) for t in expected_torque(0.7j))
         for eps in (0.0, 0.05):
             torque, _ = self.run_case(0.7 + 0.0j, eps)
             for actual in torque:
                 self.assertLessEqual(abs(actual), 1e-13 * scale_)
 
+    def test_consistent_drive_reproduces_same_drive_torque(self):
+        kernel = 0.7 + 0.2j
+        torque, forms = self.run_case(kernel, 0.0)
+        for actual, expected in zip(torque, expected_torque(kernel)):
+            self.assertNotEqual(expected, 0.0)
+            self.assertAlmostEqual(actual / expected, 1.0, places=12)
+        # Ideal induction: same-drive, dissipative-kernel and weak torques agree.
+        self.assertIsNotNone(forms, 'NTV_TORQUE_FORMS.OUT not written')
+        for th, td, tw in forms:
+            self.assertAlmostEqual(td / th, 1.0, places=12)
+            self.assertAlmostEqual(tw / th, 1.0, places=12)
+
     def test_torque_invariant_under_inconsistent_test_field(self):
         kernel = 0.7 + 0.2j
         reference, _ = self.run_case(kernel, 0.0)
+        shifts = {}
         for eps in (0.02, 0.04):
-            torque, _ = self.run_case(kernel, eps)
+            torque, forms = self.run_case(kernel, eps)
             for actual, ref in zip(torque, reference):
                 self.assertAlmostEqual(actual / ref, 1.0, places=12)
+            self.assertIsNotNone(forms, 'NTV_TORQUE_FORMS.OUT not written')
+            shifts[eps] = [td - th for th, td, tw in forms]
+            for (th, td, tw), ref in zip(forms, reference):
+                self.assertGreater(abs(td - th), 1e-4 * abs(ref))
+        # The dissipative-kernel torque moves linearly with the test field.
+        for a, b in zip(shifts[0.04], shifts[0.02]):
+            self.assertAlmostEqual(a / b, 2.0, places=9)
 
     def test_trapped_drift_reversal_uses_bounce_frequency_at_each_pitch(self):
         # Reactive regular kernel, dissipative reversal kernel: the torque is
         # the reversal term alone, weighted with 1/(2 omega_b) at that pitch.
-        c = self.coefficient()
         cases = [(0.7 + 0.0j, 0.3 + 0.0j), (0.7 + 0.0j, 0.3 + 0.25j),
                  (0.7 + 0.2j, 0.3 + 0.25j)]
-        scale_ = max(abs(c * t) for t in expected_reversal_torque(0.7j, 0.25j))
         for kernel, kernel0 in cases:
             torque, _ = self.run_case(kernel, 0.05, kernel0)
-            for actual, ref in zip(torque, expected_reversal_torque(kernel, kernel0)):
-                self.assertLessEqual(abs(actual - c * ref), 1e-12 * scale_)
+            expected = expected_reversal_torque(kernel, kernel0)
+            scale_ = max(abs(t) for t in expected_reversal_torque(0.7j, 0.25j))
+            for actual, ref in zip(torque, expected):
+                self.assertLessEqual(abs(actual - ref), 1e-12 * scale_)
 
     def test_passing_log_resonance_uses_bounce_frequency_at_each_pitch(self):
-        c = self.coefficient()
         cases = [(0.7 + 0.0j, 0.45 + 0.0j), (0.7 + 0.0j, SF0V), (0.7 + 0.2j, SF0V)]
-        scale_ = max(abs(c * t) for t in expected_log_torque(0.2j, 0.35j))
+        scale_ = max(abs(t) for t in expected_log_torque(0.2j, 0.35j))
         for kernel, sf0 in cases:
             torque, _ = self.run_case(kernel, 0.05, sf0=sf0)
             for actual, ref in zip(torque, expected_log_torque(kernel, sf0)):
-                self.assertLessEqual(abs(actual - c * ref), 1e-12 * scale_)
+                self.assertLessEqual(abs(actual - ref), 1e-12 * scale_)
 
 
 def main():
