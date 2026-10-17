@@ -234,4 +234,15 @@ C     PARAMETERS FOR RMZM_F
 
       END FUNCTION NTVNUMERBASE
 
+      PURE ELEMENTAL COMPLEX*16 FUNCTION NTVNUMERWEIGHT(RD,DPSI,DE,
+     &                                              BASE)
+      REAL*8,INTENT(IN) :: RD,DPSI,DE
+      COMPLEX*16,INTENT(IN) :: BASE
+
+C     Form the weighted numerator before a distribution derivative can
+C     underflow.  DE*(RD*DPSI/DE+BASE) has a removable 0/0 singularity.
+      NTVNUMERWEIGHT = RD*DPSI+BASE*DE
+
+      END FUNCTION NTVNUMERWEIGHT
+
       END MODULE GLOBALM

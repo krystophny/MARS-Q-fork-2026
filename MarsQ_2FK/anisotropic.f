@@ -3877,9 +3877,15 @@ C     H4 = H5**(-1.5)
 
 C     COMPUTE FNUM=WHOLE NUMERATOR OF THE I-FACTOR
 C     N0-FACTOR TIMES F_E: F_PSI/F_E IS 0/0 IN THE MAXWELLIAN TAIL
-      FNUM = RTMP1*ZRESU(:,2,1,KP)+
-     &       NTVNUMERBASE(RNTOR,OMEGAE0(JS,KGRID),OMEGA,
-     &                    NTVNUMEREFAC)*ZRESU(:,2,2,KP)
+      IF (KOPT.EQ.0) THEN
+         FNUM = NTVNUMERWEIGHT(RTMP1,ZRESU(:,2,1,KP),
+     &      ZRESU(:,2,2,KP),NTVNUMERBASE(RNTOR,OMEGAE0(JS,KGRID),
+     &                                  OMEGA,NTVNUMEREFAC))
+      ELSE
+         FNUM = RTMP1*ZRESU(:,2,1,KP)+
+     &          NTVNUMERBASE(RNTOR,OMEGAE0(JS,KGRID),OMEGA,
+     &                       NTVNUMEREFAC)*ZRESU(:,2,2,KP)
+      ENDIF
 
       IF (KOPT.EQ.0) THEN
          FAC0 =-2.
@@ -4498,12 +4504,21 @@ C     H4 = H5**(-1.5)  ZEPK IS ALREADY E/EPSALPHA, AS IN KIA_TRAP
 
 C     COMPUTE FNUM=WHOLE NUMERATOR OF THE I-FACTOR
 C     N0-FACTOR TIMES F_E: F_PSI/F_E IS 0/0 IN THE MAXWELLIAN TAIL
-      FNUM1 = RTMP1*ZRESU(:,1,1,KP)+
-     &        NTVNUMERBASE(RNTOR,OMEGAE0(JS,KGRID),OMEGA,
-     &                     NTVNUMEREFAC)*ZRESU(:,1,2,KP)
-      FNUM3 = RTMP1*ZRESU(:,3,1,KP)+
-     &        NTVNUMERBASE(RNTOR,OMEGAE0(JS,KGRID),OMEGA,
-     &                     NTVNUMEREFAC)*ZRESU(:,3,2,KP)
+      IF (KOPT.EQ.0) THEN
+         FNUM1 = NTVNUMERWEIGHT(RTMP1,ZRESU(:,1,1,KP),
+     &      ZRESU(:,1,2,KP),NTVNUMERBASE(RNTOR,OMEGAE0(JS,KGRID),
+     &                                  OMEGA,NTVNUMEREFAC))
+         FNUM3 = NTVNUMERWEIGHT(RTMP1,ZRESU(:,3,1,KP),
+     &      ZRESU(:,3,2,KP),NTVNUMERBASE(RNTOR,OMEGAE0(JS,KGRID),
+     &                                  OMEGA,NTVNUMEREFAC))
+      ELSE
+         FNUM1 = RTMP1*ZRESU(:,1,1,KP)+
+     &           NTVNUMERBASE(RNTOR,OMEGAE0(JS,KGRID),OMEGA,
+     &                        NTVNUMEREFAC)*ZRESU(:,1,2,KP)
+         FNUM3 = RTMP1*ZRESU(:,3,1,KP)+
+     &           NTVNUMERBASE(RNTOR,OMEGAE0(JS,KGRID),OMEGA,
+     &                        NTVNUMEREFAC)*ZRESU(:,3,2,KP)
+      ENDIF
 
       IF (KOPT.EQ.0) THEN
          FAC0  =-1.
