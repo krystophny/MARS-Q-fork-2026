@@ -8885,8 +8885,6 @@ C=======================================================================
       INCLUDE 'integc.inc'
 
 C     FILL IN SYSTEM MATRICES WITH THE CONVERGED EIGENVALUE
-      CALL PREPAREKINETICENERGYMAT(
-     &     ASUBM,BSUBM,CSUBM,DSUBM,ESUBM,FSUBM,GSUBM,HSUBM)
      
       ALLOCATE( DWPX(NTP1), DWPPARX(NTP1), DWPPERX(NTP1), DWJX(NTP1),
      &          DWQX(NTP1), DWVX(NTP1),    DWXIX(NTP1),   DWX2X(NTP1),
