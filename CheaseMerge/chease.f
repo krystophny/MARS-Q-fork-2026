@@ -3339,6 +3339,7 @@ C
 C*DECK C2S05
 C*CALL PROCESS
          SUBROUTINE MATRIX
+         USE folded_band, ONLY: folded_factor, folded_reset
 C        #################
 C
 C                                        AUTHORS:
@@ -3356,12 +3357,39 @@ C
          INCLUDE 'COMDIM.inc'
          INCLUDE 'COMBLA.inc'
          INCLUDE 'COMNUM.inc'
+         INCLUDE 'COMINT.inc'
+         INTEGER ORDER_STATUS
+         CHARACTER*16 BAND_ORDER
 C
 C---*----*----*----*----*----*----*----*----*----*----*----*----*----*
 C
 C
+C Native remains the default. Folded removes inactive unit equations
+C and permutes active variables before using the same native factors.
+         CALL folded_reset()
          CALL SETUPA
+         CALL GET_ENVIRONMENT_VARIABLE('CHEASE_BAND_ORDER',BAND_ORDER,
+     R   STATUS=ORDER_STATUS)
+         IF (ORDER_STATUS .EQ. 1 .OR. (ORDER_STATUS .EQ. 0 .AND.
+     R   (TRIM(BAND_ORDER) .EQ. '' .OR.
+     R    TRIM(BAND_ORDER) .EQ. 'native'))) THEN
+         BAND_ORDER = 'native'
          CALL ALDLT(A,RC1M14,N4NSNT,NBAND,NPBAND,ISGN)
+         ELSE IF (ORDER_STATUS .EQ. 0 .AND.
+     R   TRIM(BAND_ORDER) .EQ. 'folded') THEN
+         IF (NS .GE. 3 .AND. NT .GE. 4 .AND. MOD(NT,2) .EQ. 0
+     R       .AND. 8*NS+4 .LT. NBAND) THEN
+         CALL folded_factor(A,NS,NT,N4NSNT,NBAND,NPBAND,
+     R   NUPDWN(1:NSTMAX),RC1M14,ISGN)
+         ELSE
+         BAND_ORDER = 'native'
+         CALL ALDLT(A,RC1M14,N4NSNT,NBAND,NPBAND,ISGN)
+         ENDIF
+         ELSE
+         STOP 'CHEASE_BAND_ORDER must be native or folded'
+         ENDIF
+         WRITE(*,*) 'CHEASE band order ',TRIM(BAND_ORDER)
+         IF (ISGN .EQ. -2) STOP 'FOLDED_FACTOR=-2'
 C
          IF (ISGN .EQ. -1) STOP 'ISGN=-1'
 C
@@ -7772,6 +7800,7 @@ C
 C*DECK C2SE02
 C*CALL PROCESS
          SUBROUTINE DIRECT
+         USE folded_band, ONLY: folded_active, folded_solve
 C        #################
 C
 C                                        AUTHORS:
@@ -7795,6 +7824,11 @@ C
 *                                                                     *
 ***********************************************************************
 C
+         IF (folded_active) THEN
+         CALL folded_solve(B(1:N4NSNT),ISGN)
+         IF (ISGN .NE. 0) STOP 'FOLDED_SOLVE=-2'
+         RETURN
+         ENDIF
          CALL LYV(A,B,N4NSNT,NP4NST,NBAND,NPBAND)
 C
 ***********************************************************************

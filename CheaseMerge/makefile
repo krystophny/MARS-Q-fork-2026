@@ -8,7 +8,7 @@ FFLAGS = -OPT:Olimit=0 -m64
 PROG =	 chease.x
 BUILD_DIR ?= ../build
 
-SRCS =   chease.f 
+SRCS =   folded_band.f90 chease.f
 
 INCS =	       COMBND.inc  COMINT.inc  COMPLO.inc  DECLAR.inc	QUAQDQ.inc \
                COMCON.inc  COMIOD.inc  COMRCH.inc  HERMIT.inc	QUAQQQ.inc \
@@ -23,7 +23,7 @@ MODS =
 
 .PRECIOUS:	$(SRCS) $(INCS) $(MODS)
 
-OBJS =	$(SRCS:.f=.o)
+OBJS =	$(patsubst %.f90,%.o,$(SRCS:.f=.o))
 
 #LIBDIR = \
 #        -L/usr/pgi/linux86-64/7.0-5/lib
@@ -62,7 +62,7 @@ $(PROG): $(OBJS)
 	$(F95) $(F95FLAGS) -o $@ $(OBJS) $(LIBS)
 
 clean:
-	rm -f $(PROG) $(OBJS) *.d work.*
+	rm -f $(PROG) $(OBJS) folded_band.mod *.d work.*
 
 test:
 	echo $(OBJS) 
@@ -73,4 +73,9 @@ tar:
 .SUFFIXES: $(SUFFIXES) .f
 
 .f.o:
+	$(F95) $(F95FLAGS) -c $<
+
+chease.o: folded_band.o
+
+folded_band.o: folded_band.f90
 	$(F95) $(F95FLAGS) -c $<
