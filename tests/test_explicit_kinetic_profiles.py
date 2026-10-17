@@ -245,6 +245,35 @@ class ExplicitKineticProfiles(unittest.TestCase):
         for row in rows:
             self.close(row[4], DENSITIES[int(row[0]) - 1] / NREF)
 
+    def test_fixori_axis_radius_uses_regular_flux_limit(self):
+        # READTOR keeps DPSIDS(1)=0; FIXORI replaces its zero radius by
+        # .001*CS(2). This first node still denotes the magnetic axis.
+        axis_cs = .001 * math.sqrt(1 / (N - 1))
+        slope = .4
+        records = profile(slope)
+        values = [axis_cs]
+        for density, energy in zip(DENSITIES, ENERGIES):
+            values.extend((density * (1 + slope * axis_cs**2), energy))
+        records[6] = " ".join(f"{value:.17e}" for value in values)
+        self.pipeline_rows(self.execute(records, "CASE_ID=4"))
+        # Constant q gives PHIEDGE/q=CS(edge)^2-CS(axis)^2, while
+        # DPSIDSM/(2*CSM)=1: independently known finite axis limit.
+        flux_scale = 1 - axis_cs**2
+        for row in self.readback_rows():
+            species, grid, js = map(int, row[:3])
+            self.close(row[11], DENSITIES[species - 1] * slope * flux_scale,
+                       relative=3e-10)
+            if grid == 1 and js == 1:
+                self.close(row[3], axis_cs)
+                self.close(row[4], 0)
+
+    def test_zero_interior_flux_jacobian_is_rejected(self):
+        result = self.execute(profile(), "CASE_ID=5")
+        self.assertIn("EXPLICIT READBACK REQUIRES NONZERO FLUX JACOBIAN",
+                      result.stdout + result.stderr)
+        self.assertNotIn("PIPELINE_PASS", result.stdout)
+        self.assertFalse((self.work / "KINETIC_PROFILES.OUT").exists())
+
     def test_invalid_files_and_unsupported_modes_reject(self):
         cases = [("missing", None)]
         mutations = {
@@ -361,6 +390,10 @@ program explicit_profiles_oracle
   CS(j)=sqrt(dble(j-1)/8d0);CSM(j)=sqrt((dble(j)-.5d0)/8d0)
  enddo
  DPSIDS=2d0*CS;DPSIDSM=2d0*CSM;Q=1.7d0;QM=1.7d0
+ if(CASE_ID==4) then
+  CS(1)=.001d0*CS(2)
+  DPSIDS(1)=0d0
+ endif
  PEQ=.4d0+.3d0*CS**2;PEQM=.4d0+.3d0*CSM**2;PPEQ=.3d0;PPEQM=.3d0
  RHO=1.1d0+.2d0*CS**2;RHOM=1.1d0+.2d0*CSM**2
  carrier(:,1)=PEQ;carrier(:,2)=PEQM;carrier(:,3)=RHO;carrier(:,4)=RHOM;carrier(:,5)=PPEQ;carrier(:,6)=PPEQM
@@ -376,6 +409,7 @@ program explicit_profiles_oracle
 !VALIDATE
  call KEQPROF
  call KALPHAA
+ if(CASE_ID==5) DPSIDS(2)=0d0
  call KDIAMAG
 !OBSERVE
  if(any(PEQ/=carrier(:,1)).or.any(PEQM/=carrier(:,2)).or.any(RHO/=carrier(:,3)).or.any(RHOM/=carrier(:,4))) &
