@@ -8,6 +8,7 @@
 FFLAGS = -OPT:Olimit=0 -m64
 
 PROG =	 marsq.x
+BUILD_DIR ?= ../build
 DIR_LSODE = /lsode
 SRCS_LSODE = daxpy.f   dcopy.f  dewset.f  dgbsl.f  dgesl.f \
              dprepj.f  dsolsy.f  dstode.f  dvnorm.f  iumach.f  lsode.f   xerrwd.f \
@@ -24,6 +25,7 @@ PAMS_CSC_FLAGS = -I$(FORTSPARSE_PREFIX)/include
 PAMS_CSC_LIBS = $(FORTSPARSE_PREFIX)/lib/libfortsparse.a -ldl -lrt
 # Set FORTSPARSE_LIBS when a static dependency needs additional platform libraries.
 PAMS_CSC_LIBS += $(FORTSPARSE_LIBS)
+PAMS_CSC_ARGS = --pams-csc --fortsparse-prefix "$(FORTSPARSE_PREFIX)" --fortsparse-libs="$(FORTSPARSE_LIBS)"
 endif
 
 #SRCS =   $(DIR_LSODE $(SRC_LSODE))                   \
@@ -75,14 +77,48 @@ LIBS += $(PAMS_CSC_LIBS)
 
 all: $(PROG)
 
+.PHONY: gnu gnu-debug ifx nvhpc clean-objects test test-runtime check
+.NOTPARALLEL: gnu gnu-debug ifx nvhpc
+
+gnu:
+	python3 ../tools/build_with_provenance.py --profile gnu \
+		--build-dir $(BUILD_DIR) $(PAMS_CSC_ARGS)
+
+gnu-debug:
+	python3 ../tools/build_with_provenance.py --profile gnu-debug \
+		--build-dir $(BUILD_DIR) $(PAMS_CSC_ARGS)
+
+# Source the Intel oneAPI environment before invoking this target.
+ifx:
+	python3 ../tools/build_with_provenance.py --profile ifx \
+		--build-dir $(BUILD_DIR) $(PAMS_CSC_ARGS)
+
+# Put the NVIDIA HPC SDK compiler and HPC-X MPI wrapper on PATH first.
+nvhpc:
+	python3 ../tools/build_with_provenance.py --profile nvhpc \
+		--build-dir $(BUILD_DIR) $(PAMS_CSC_ARGS)
+
 $(PROG): $(OBJS)
 	$(F95) $(F95FLAGS) -o $@ $(OBJS) $(LIBS) $(INCDIR)
 
 clean:
 	rm -f $(PROG) *.o *.mod *.d  \lsode\*.o \lsode\*.mod 
 
+# The legacy dependency graph writes compiler-specific modules and objects into
+# the source tree.  Remove only those intermediates before changing compiler;
+# keep the historical tracked executable untouched.
+clean-objects:
+	rm -f *.o *.mod *.d lsode/*.o lsode/*.mod
+
 test:
-	echo $(OBJS) 
+	python -B -m unittest discover -s ../tests -p 'test_*.py'
+
+test-runtime:
+	test -n "$(MARS_EXE)"
+	MARS_EXE="$(MARS_EXE)" python -B -m unittest discover \
+		-s ../tests -p 'test_*.py'
+
+check: test
 
 tar:
 	gtar zcvf ../$(PROG).tar.gz $(SRCS) $(INCS) $(MODS) makefile README
@@ -94,5 +130,3 @@ tar:
 
 .f.o:
 	$(F95) $(F95FLAGS) $(PAMS_CSC_FLAGS) -c $<
-
-

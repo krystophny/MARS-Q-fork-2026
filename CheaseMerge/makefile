@@ -6,6 +6,7 @@
 FFLAGS = -OPT:Olimit=0 -m64
 
 PROG =	 chease.x
+BUILD_DIR ?= ../build
 
 SRCS =   chease.f 
 
@@ -42,6 +43,21 @@ LDFLAGS =
 
 all: $(PROG)
 
+.PHONY: gnu ifx
+
+gnu:
+	mkdir -p $(BUILD_DIR)
+	mpif90 -O2 -fdefault-real-8 -fdefault-double-8 \
+		-ffixed-line-length-none -fallow-argument-mismatch \
+		-finit-local-zero -mcmodel=medium -o $(BUILD_DIR)/chease-gnu.x $(SRCS)
+
+# CHEASE depends on zero-initialized legacy local storage during startup.
+# Without -init=zero the current ifx build segfaults before reading EQDATA.
+ifx:
+	mkdir -p $(BUILD_DIR)
+	mpiifx -O3 -real-size 64 -xHost -init=zero -mcmodel=medium \
+		-extend-source 132 -o $(BUILD_DIR)/chease-ifx.x $(SRCS)
+
 $(PROG): $(OBJS)
 	$(F95) $(F95FLAGS) -o $@ $(OBJS) $(LIBS)
 
@@ -58,4 +74,3 @@ tar:
 
 .f.o:
 	$(F95) $(F95FLAGS) -c $<
-
