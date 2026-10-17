@@ -21451,6 +21451,7 @@ C
          INCLUDE 'COMEQD.inc'
          INCLUDE 'COMDAT.inc'
 C
+         INTEGER(KIND=SELECTED_INT_KIND(12)) ITOT
 C
          DIMENSION
      R   ZCPSI(NSNT),   ZDPDS(NSNT),   ZDPDT(NSNT),   ZD2PST(NSNT),
@@ -21856,7 +21857,8 @@ C
          IVAC  = NCVAC*2
          IVEV  = NVEV
          IEQD  = NEQD1 + NEQD2
-         ITOT = IBLA + IBAL + IBND + ICON + IERA + IESH + IETA + IINT +
+         ITOT = INT(IBLA,KIND(ITOT)) + IBAL + IBND + ICON + IERA + IESH +
+     +     IETA + IINT +
      +     IIOD + IISO + IMAP + INUM + IPHY + IPLO + ISOL + ISUR
      +     + IVAC + IVEV + IEQD
 C
@@ -21878,7 +21880,7 @@ C
          CALL IVAR('COMSUR',ISUR)
          CALL IVAR('COMVAC',NCVAC)
          CALL IVAR('COMVEV',IVEV)
-         CALL IVAR('TOTAL ',ITOT)
+         WRITE(6,'(/,1X,A,I12)') 'TOTAL  =',ITOT
 C
          RETURN
 C
