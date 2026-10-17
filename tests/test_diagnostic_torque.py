@@ -24,7 +24,9 @@ def routine(text, name):
 def run(source):
     source=Path(source);text=(source/'kinetic.f').read_text()
     body=routine(text,'CALCDWKCOMP')
-    start=body.index('      TORQUENTVI = 0.')
+    start=body.find('      TNORM =')
+    if start < 0:
+        start=body.index('      TORQUENTVI = 0.')
     end=body.index('      TORQUENTV  = TORQUENTVI + TORQUENTVE',start)
     end+=len('      TORQUENTV  = TORQUENTVI + TORQUENTVE')
     production=body[start:end]
@@ -43,23 +45,29 @@ def run(source):
       USE RCOMDM
       USE KINETICM
       USE TORQUEM
+      USE TOOLBOX
       IMPLICIT NONE
-      INTEGER IS,I,INDX,U
-      REAL*8 PI2
+      INTEGER IS,I,INDX,U,KP,IH,NSP,FID
+      REAL*8 PI2,TH(2),TD(2),TW(2),TNORM
       CHARACTER*16 ARG
       COMPLEX*16 DWPPARX(3,1),DWPPERX(3,1),DWPPARY(3,1),DWPPERY(3,1)
-      COMPLEX*16 PYD(3,1,5),EYD(3,1,5)
+      COMPLEX*16 PYD(3,1,5),EYD(3,1,5),DWHERM(3,1)
       NR=2
       NRP1=3
       NSPECIES=2
       CALL GET_COMMAND_ARGUMENT(1,ARG)
       READ(ARG,*) RNTOR
-      ALLOCATE(CSM(2),CSH(2),INDXDWKC(2,5))
+      ALLOCATE(CSM(2),CSH(2),INDXDWKC(2,10),INDXHWKC(2,5))
       ALLOCATE(TORQUENTVI(2),TORQUENTVE(2),TORQUENTV(2))
       CSM=(/0.25D0,0.75D0/)
       CSH=(/0.2D0,0.8D0/)
       INDXDWKC=-1
       INDXDWKC(1,5)=1
+      INDXDWKC(1,10)=1
+      INDXHWKC=-1
+      INDXHWKC(1,5)=1
+      IFOWP=0
+      IFOWT=0
       DWPPARX=(1.0D0,2.0D0)
       DWPPERX=(3.0D0,4.0D0)
       DWPPARY=(5.0D0,6.0D0)
@@ -69,6 +77,9 @@ def run(source):
       DO IS=1,NR
 FOLD
       ENDDO
+C     MANUFACTURED IDEAL-INDUCTION CASE: SAME-DRIVE AND WEAK WORK AGREE.
+C     THE REAL-FIELD FORCE QUADRATURE BELOW FIXES THE TORQUE INDEPENDENTLY.
+      DWHERM=DWPPARY+DWPPERY
 PRODUCTION
       PYD=0
       EYD=0
