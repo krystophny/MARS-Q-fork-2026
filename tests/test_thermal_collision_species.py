@@ -34,13 +34,17 @@ class ThermalSpeciesCollision(unittest.TestCase):
         old_metadata = ""
         if "KNUSPECIES" not in (cls.source / "globalm.f").read_text():
             old_metadata = "integer :: KNUSPECIES\nreal*8 :: NUEFFSA(10)\n"
+        default_profiles = ""
+        if "KPROFSPEC" in (cls.source / "globalm.f").read_text():
+            default_profiles = "KPROFSPEC=0"
         readback = ""
         if not old_metadata:
             kernel += production_routine((cls.source / "marsq.f").read_text(), "CALC_NUSTAR")
             readback = "if (KNUSPECIES==1) call CALC_NUSTAR"
         (cls.work / "kernel.f").write_text(kernel)
         (cls.work / "driver.f90").write_text(
-            DRIVER.replace("!INPUT_METADATA", old_metadata).replace("!READBACK", readback))
+            DRIVER.replace("!INPUT_METADATA", old_metadata).replace("!READBACK", readback)
+                  .replace("!DEFAULT_PROFILES", default_profiles))
         (cls.work / "mpi_fixture.f90").write_text(
             "module MPIENV\ninteger :: ISMPIRUN,RANK\ninteger,parameter :: ROOT=0\nend module\n")
         modules = ["globalm.f", "dimensim.f", "rcomdm.f", "kineticm.f", "anisotropicm.f", "torquem.f"]
@@ -139,6 +143,7 @@ program thermal_rate_oracle
  integer :: j,k
 !INPUT_METADATA
  NR=2;NRP1=3;ISMPIRUN=1;RANK=ROOT
+!DEFAULT_PROFILES
  read(*,*) KNUSPECIES,NSPECIES,NUMODEL,INUTYPE,NPROFIE,NEXPV,INCKIN,KNTV,(NUEFFSA(k),k=1,3)
  allocate(CS(3),CSM(3),GNUI(3),GNUIM(3),GNUE(3),GNUEM(3))
  allocate(NUEFF(3,2,3),FFF(3,2),DFFF(3,2))
@@ -166,6 +171,9 @@ subroutine DFFFDPSI(mode)
  use globalm,only:DFFF
  integer :: mode
  DFFF=0d0
+end subroutine
+subroutine KWRITEEXPLICITPROFILES
+ error stop 'unexpected explicit profile observer in default-off width test'
 end subroutine
 """
 
