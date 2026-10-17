@@ -573,7 +573,7 @@ C NKSMOOTHB = NUMBER OF POLOIDAL HARMONICS FOR SMOOTHING FIELD AMPLITUDE B
 C             IN KINETIC COMPUTATIONS
 C KSMOOTHB  = 1: APPLY THE NKSMOOTHB POLOIDAL-HARMONIC FILTER TO BK/HK
 C             0: KEEP BK/HK from the unfiltered equilibrium in the kinetic path
-C             (BPK is unchanged and is always formed before this filter.)
+C             (BPK is rebuilt from the retained BK on both radial meshes.)
 C             The default is 1; disabling this is a diagnostic comparison only.
 C NKSMOOTHR = NUMBER OF APPLIED DIFUSSIION OPEARTION CYCLES FOR SMOOTHING
 C             RADIAL PROFILES OF EQUILIBRIUM KINETIC QUANTITIES 

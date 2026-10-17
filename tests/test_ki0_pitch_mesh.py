@@ -74,9 +74,17 @@ def run_check(source, build_parent, fpe_trap=True):
     text=(src/'kinetic.f').read_text()
     start=re.search(r'^      SUBROUTINE KI0\(',text,re.M).start()
     end=re.search(r'^      END\s*$',text[start:],re.M).end()+start
+    # Preserve the production request-file observer, which returns before
+    # touching this manufactured mesh when its selected surface is absent.
+    observers = (src / 'anisotropic.f').read_text()
+    observer = re.search(r'^      SUBROUTINE PRECOBS_SPLINE\(', observers, re.M)
+    observer_text = ''
+    if observer:
+        stop = re.search(r'^      END\s*$', observers[observer.start():], re.M).end()
+        observer_text = observers[observer.start():observer.start() + stop] + '\n'
     with tempfile.TemporaryDirectory(prefix='ki0-mesh-',dir=build_parent) as directory:
         work=Path(directory)
-        (work/'ki0.f').write_text(text[start:end]+'\n')
+        (work/'ki0.f').write_text(text[start:end]+'\n'+observer_text)
         (work/'driver.f90').write_text(DRIVER)
         files=[src/name for name in ['globalm.f','dimensim.f','rcomdm.f',
                'kineticm.f','anisotropicm.f','ToolBox.f90','splines.f']]
