@@ -9,6 +9,7 @@ import argparse
 import json
 import math
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -27,9 +28,11 @@ def run(source):
     start=body.find('      TNORM =')
     if start < 0:
         start=body.index('      TORQUENTVI = 0.')
-    end=body.index('      TORQUENTV  = TORQUENTVI + TORQUENTVE',start)
-    end+=len('      TORQUENTV  = TORQUENTVI + TORQUENTVE')
-    production=body[start:end]
+    # Include the complete native aggregation, including per-species output
+    # and the closing KNTV conditional; the next section is not torque code.
+    end=re.search(r'^C\s+(?:SAME-DRIVE WORK|OUTPUT PROFILES)\b',body[start:],re.M)
+    if end is None:raise RuntimeError('Native torque section boundary missing')
+    production=body[start:start+end.start()]
     # Execute both exact native radial-fold assignments, independently of each
     # diagnostic writer. The rest of CALCDWKCOMP is unnecessary for constants.
     folds=[]
@@ -47,14 +50,15 @@ def run(source):
       USE TORQUEM
       USE TOOLBOX
       IMPLICIT NONE
-      INTEGER IS,I,INDX,U,KP,IH,NSP,FID
-      REAL*8 PI2,TH(2),TD(2),TW(2),TNORM
+      INTEGER IS,I,INDX,U,KP,IH,NSP,FID,FIDS
+      REAL*8 PI2,TH(2),TD(2),TW(2),TNORM,TSPEC
       CHARACTER*16 ARG
       COMPLEX*16 DWPPARX(3,1),DWPPERX(3,1),DWPPARY(3,1),DWPPERY(3,1)
       COMPLEX*16 PYD(3,1,5),EYD(3,1,5),DWHERM(3,1)
       NR=2
       NRP1=3
       NSPECIES=2
+      ISPECIES_F0=0
       CALL GET_COMMAND_ARGUMENT(1,ARG)
       READ(ARG,*) RNTOR
       ALLOCATE(CSM(2),CSH(2),INDXDWKC(2,10),INDXHWKC(2,5))
@@ -80,6 +84,7 @@ FOLD
 C     MANUFACTURED IDEAL-INDUCTION CASE: SAME-DRIVE AND WEAK WORK AGREE.
 C     THE REAL-FIELD FORCE QUADRATURE BELOW FIXES THE TORQUE INDEPENDENTLY.
       DWHERM=DWPPARY+DWPPERY
+      IF (.TRUE.) THEN
 PRODUCTION
       PYD=0
       EYD=0
@@ -101,7 +106,16 @@ PRODUCTION
     toolbox='''module toolbox
 contains
 integer function ASSIGNFREEFILEUNIT()
-ASSIGNFREEFILEUNIT=98
+integer unit
+logical opened
+do unit=20,99
+inquire(unit=unit,opened=opened)
+if (.not.opened) then
+ASSIGNFREEFILEUNIT=unit
+return
+endif
+enddo
+error stop 'No free fixture file unit'
 end function
 end module
 '''

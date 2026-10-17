@@ -1,22 +1,39 @@
 #!/usr/bin/env python3
-"""Compile one focused native PAMS/CSC qualification with an existing fortsparse build."""
+"""Compile one focused native PAMS/CSC qualification with an existing fortsparse build.
+
+The standalone CLI retains explicit dependency arguments. CTest uses --ctest
+to report return code 77 when its optional fortsparse prefix is unconfigured.
+Unittest/Make runs the same qualification when MARS_PAMS_FORTSPARSE_PREFIX is
+configured; the dependency-free build reports an explicit unittest skip.
+MARS_PAMS_LINK_LIBRARIES adds space-separated native --link-library arguments.
+"""
 import argparse
 import hashlib
 import json
 import os
 from pathlib import Path
+import shlex
 import subprocess
 import tempfile
+import unittest
 
 
-def main():
+def main(argv=None):
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--fortsparse-prefix',type=Path,required=True)
+    parser.add_argument('--ctest',action='store_true',
+                        help='skip with status 77 only when the optional fortsparse prefix is absent')
+    parser.add_argument('--fortsparse-prefix',type=Path)
     parser.add_argument('--build-parent',type=Path,required=True)
     parser.add_argument('--link-library',action='append',default=[])
     parser.add_argument('--baseline-revision',help='Compare identical caller fixture against this original git revision')
     parser.add_argument('--report',type=Path)
-    args=parser.parse_args()
+    args=parser.parse_args(argv)
+    if args.fortsparse_prefix is None:
+        if args.ctest:
+            print('SKIP: optional native PAMS/CSC regression requires '
+                  'MARS_PAMS_FORTSPARSE_PREFIX (include/lib/bin)')
+            return 77
+        parser.error('the following argument is required: --fortsparse-prefix')
     source=Path(__file__).resolve().parents[1]
     prefix=args.fortsparse_prefix.resolve()
     args.build_parent.mkdir(parents=True,exist_ok=True)
@@ -128,5 +145,19 @@ def main():
                 baseline_pams_sha256=baseline_sha,native_caller_family=records),indent=2)+'\n')
 
 
+class PamsGlobalCsc(unittest.TestCase):
+    def test_native_pams_global_csc(self):
+        prefix=os.environ.get('MARS_PAMS_FORTSPARSE_PREFIX')
+        if not prefix:
+            self.skipTest('optional native PAMS/CSC regression requires '
+                          'MARS_PAMS_FORTSPARSE_PREFIX (include/lib/bin)')
+        source=Path(__file__).resolve().parents[1]
+        build_parent=Path(os.environ.get('TMPDIR') or source/'build')
+        arguments=['--fortsparse-prefix',prefix,'--build-parent',str(build_parent)]
+        for library in shlex.split(os.environ.get('MARS_PAMS_LINK_LIBRARIES','')):
+            arguments.extend(['--link-library',library])
+        main(arguments)
+
+
 if __name__=='__main__':
-    main()
+    raise SystemExit(main())

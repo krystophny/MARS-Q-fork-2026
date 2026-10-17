@@ -20,6 +20,7 @@ import math
 from pathlib import Path
 import re
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -29,7 +30,8 @@ ROUTINES = ['KJPFILL', 'KHERMFILL', 'KHERMADD', 'KHERMQUAD', 'SETDWKCOMPMAT',
             'READ_SURFACE_HERMITIAN', 'FILLMATDWKCOMP', 'CALCPRECOMP',
             'CALCDWKPROF', 'CALCDWKCOMP', 'WRITEDWKBREAKDOWN',
             'WRITEDWKDRIVELEDGER', 'CALCDWKDIRECTCHECK',
-            'WRITENATIVEFACTORS', 'WRITENATIVEPRESSURE']
+            'WRITENATIVEFACTORS', 'WRITENATIVEPRESSURE',
+            'WRITEKINETICINPUTSTATE']
 
 G = 0.8 + 0.3j                      # parallel pressure projection (KG)
 H = [0.5 - 0.2j, 0.3 + 0.4j, -0.6 + 0.1j, 0.2 + 0.5j, 0.4 - 0.3j]  # KH: X1 X2 B1 B2 B3
@@ -203,6 +205,7 @@ use dimensim
 use rcomdm
 use kineticm
 use torquem
+use feedbackm, only: KTREST
 implicit none
 complex*16, allocatable :: a(:,:,:),b(:,:,:),c(:,:,:),dm(:,:,:),
 & e(:,:,:),f(:,:,:),g(:,:,:),h(:,:,:)
@@ -215,6 +218,7 @@ KYPPARA=6; KYPPERP=7
 RNTOR={RNTOR}d0; KNTV=21; INCKIN=1; KEFORM=2; IFOWP=0; IFOWT=0
 ODWKCOM=.true.; ISWEEP=1; NSWEEP=1; ALPHAD=1; PTRAPH={PTRAPH}d0; CTEDGE=10
 INCDPHI=0; IDIAMB=0; IDIAMTE=0; KNTVELL=999
+KTREST=0
 PSPECIES_AP=0; PSPECIES_AT=0; PSPECIES_NP=0; PSPECIES_NTB=0; PSPECIES_NTD=0
 allocate(HKMIN(NRP1,2),HKMAX(NRP1,2),WFUN(NRP1,2),RLM(1))
 HKMIN=0; HKMAX=1; WFUN=1
@@ -330,13 +334,14 @@ def run_native(source, build_parent, kernel, eps, kernel0=None, sf0=None):
         (work / 'clear.f90').write_text(clear)
         (work / 'driver.f90').write_text(driver(kernel, eps, kernel0, sf0).replace('\n& ', ' &\n& '))
         names = ['dimensim.f', 'globalm.f', 'rcomdm.f', 'kineticm.f', 'anisotropicm.f',
-                 'gijlm.f', 'convolcofm.f', 'torquem.f', 'ToolBox.f90']
+                 'gijlm.f', 'convolcofm.f', 'torquem.f', 'feedbackm.f', 'ToolBox.f90']
         command = ['gfortran', '-O0', '-fdefault-real-8', '-fdefault-double-8',
                    '-ffixed-line-length-none', '-ffree-line-length-none',
                    '-fallow-argument-mismatch', '-ffunction-sections', '-fdata-sections',
                    '-ffpe-trap=zero,invalid', '-fcheck=bounds', '-w', '-I' + str(src)]
         command += [str(src / n) for n in names]
-        command += ['routines.f', 'clear.f90', 'driver.f90', '-Wl,--gc-sections',
+        dead_strip = '-Wl,-dead_strip' if sys.platform == 'darwin' else '-Wl,--gc-sections'
+        command += ['routines.f', 'clear.f90', 'driver.f90', dead_strip,
                     '-o', 'test']
         compiled = subprocess.run(command, cwd=work, capture_output=True, text=True)
         if compiled.returncode:
