@@ -122,7 +122,7 @@ C
      I             NETA2 = NPISO * MPSMAX * (29 + 12 * NPSMAX),
      I             NETA3 = 64 * NPISO * MPSMAX,
      I             NETA4 = 34 * NPISO * MPSMAX,
-     I             NICON = 33,
+     I             NICON = 34,
      I             NINT1 = NSNT + 20 * NPT,
      I             NINT2 = NPGAUS * (3+NPS+3*NPT+16*NPS*NPT),
      I             NIOD  = 21)

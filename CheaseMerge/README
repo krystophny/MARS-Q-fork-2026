@@ -27,3 +27,20 @@ Very important!: always choose NCHI as even number
 In order to better resolve magnetic axis, use the following packing for 
 the sigma-mesh:
    NMESHC=1, NPOIDC=1, SOLPDC=0.8, CPLACE=0.0,CWIDTH=0.020,
+
+Opt-in frozen-restart wall replacement:
+
+NINWALL=1 is supported only with NOPT=1, NSURF=6 and NSYM=0. It reads
+normal EXPEQ geometry (NDATA=2) after loading NIN. The EXPEQ plasma
+vertices must match the frozen native plasma point set within 1e-12 in
+the frozen native coordinate frame. The runtime mesh-axis RZ0 is not an
+input origin and is not subtracted. No translation, scale or phase is
+fitted. The EXPEQ preamble and profile block do not alter native state.
+Only intermediate/outer walls and their native angular splines are rebuilt;
+the NIN file, plasma splines, equilibrium coefficients and profiles remain
+unchanged. Default NINWALL=0 retains the existing restart behavior.
+
+This permits NVEXP=8 to pin a supplied physical intermediate wall on an
+integer vacuum surface while refining NV without solving the equilibrium
+again. It does not qualify individual coil endpoints or field convergence.
+Always verify the actual OUTRMAR/OUTVMAR geometry and preserve source hashes.

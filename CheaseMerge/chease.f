@@ -461,6 +461,7 @@ C
 ***********************************************************************
 C
          INCLUDE 'DECLAR.inc'
+         INCLUDE 'COMCON.inc'
          COMMON /COMTIM/ STIME
 C
 C----*----*----*----*----*----*----*----*----*----*----*----*----*----*
@@ -479,6 +480,10 @@ C
          CALL DATA
          CALL TCASE
          CALL COTROL
+         IF (NINWALL.NE.0.AND.NOPT.NE.1) THEN
+            WRITE(*,*) 'NINWALL REQUIRES NOPT=1'
+            STOP 1
+         ENDIF
          CALL AUXVAL
 C
 ***********************************************************************
@@ -790,6 +795,7 @@ C
          NMESHE = 0
          NMGAUS = 4
          NOPT   = 0
+         NINWALL = 0
          NPLOT  = 0
          NPOIDA = 0
          NPOIDB = 0
@@ -1949,6 +1955,7 @@ C
             CALL IODISK(7)
             CALL IODISK(26)
             CALL IODISK(16)
+            IF (NINWALL.NE.0) CALL RSTWALL
 C     
 C     WRITE NAMELIST WITH VALUES FROM NIN
 C
@@ -20615,6 +20622,99 @@ C
 *                                                                     *
 ***********************************************************************
 C
+         CALL BNDSPLW(1)
+         RETURN
+         END
+C*DECK C2SX03R
+         SUBROUTINE RSTWALL
+C     NINWALL=1 RELOADS ONLY EXPEQ WALLS AFTER A FROZEN NIN READ.
+C     THE INPUT PLASMA VERTICES MUST MATCH THE NATIVE POINT SET.
+         INCLUDE 'DECLAR.inc'
+         INCLUDE 'COMDIM.inc'
+         INCLUDE 'COMBND.inc'
+         INCLUDE 'COMCON.inc'
+         INCLUDE 'COMESH.inc'
+         DIMENSION ZR(NPBPS,NWBPS0),ZZ(NPBPS,NWBPS0)
+         INTEGER JUSED(NPBPS),JERR,JNB,JNW,JDATA,JU,JM
+         IF (NINWALL.NE.1.OR.NOPT.NE.1.OR.NSURF.NE.6.OR.
+     &       NSYM.NE.0) THEN
+            WRITE(*,*) 'NINWALL NEEDS NOPT=1,NSURF=6,NSYM=0'
+            STOP 1
+         ENDIF
+         JU=48
+         OPEN(JU,FILE='EXPEQ',STATUS='OLD',IOSTAT=JERR)
+         IF (JERR.NE.0) GOTO 900
+         READ(JU,*,IOSTAT=JERR) ZDUM
+         IF (JERR.NE.0) GOTO 900
+         READ(JU,*,IOSTAT=JERR) ZDUM
+         IF (JERR.NE.0) GOTO 900
+         READ(JU,*,IOSTAT=JERR) ZDUM
+         IF (JERR.NE.0) GOTO 900
+         READ(JU,*,IOSTAT=JERR) JNB,JNW,JDATA
+         IF (JERR.NE.0) GOTO 900
+         IF (JNB.NE.NBPS.OR.JNB.LT.4.OR.JNB.GT.NPBPS.OR.
+     &       JNW.LT.2.OR.JNW.GE.NWBPS0.OR.JDATA.NE.2) GOTO 900
+         DO J=1,JNW
+            READ(JU,*,IOSTAT=JERR) (ZR(L,J),ZZ(L,J),L=1,JNB)
+            IF (JERR.NE.0) GOTO 900
+         ENDDO
+         CLOSE(JU)
+C     REQUIRE THE FROZEN NATIVE COORDINATE FRAME; DO NOT FIT A SHIFT.
+         DO J=1,JNW
+            DO L=1,JNB
+               IF (.NOT.(ABS(ZR(L,J)).LT.HUGE(ZDUM)).OR.
+     &             .NOT.(ABS(ZZ(L,J)).LT.HUGE(ZDUM))) GOTO 900
+            ENDDO
+            IF (ABS(ZR(JNB,J)-ZR(1,J)).GT.1.D-12.OR.
+     &          ABS(ZZ(JNB,J)-ZZ(1,J)).GT.1.D-12) GOTO 900
+         ENDDO
+C     NATIVE BNDSPL SORTS VERTICES. MATCH WITHOUT CHANGING THE PLASMA.
+         JUSED=0
+         DO L=1,JNB-1
+            JM=0
+            DO K=1,JNB-1
+               IF (JUSED(K).EQ.0.AND.
+     &             ABS(ZR(L,1)-RRBPS(K,1)).LE.1.D-12.AND.
+     &             ABS(ZZ(L,1)-RZBPS(K,1)).LE.1.D-12) JM=K
+            ENDDO
+            IF (JM.EQ.0) THEN
+               WRITE(*,*) 'NINWALL PLASMA CONTOUR DIFFERS FROM NIN'
+               STOP 1
+            ENDIF
+            JUSED(JM)=1
+         ENDDO
+         ZDEN=MAXVAL(RRBPS(1:JNB,1))-R0W
+         IF (ZDEN.LE.0.) GOTO 900
+C     VALIDATE ALL INTERMEDIATE RADII BEFORE ALTERING NATIVE WALLS.
+         ZPREV=1.
+         DO J=2,JNW
+            ZRW=(MAXVAL(ZR(1:JNB,J))-R0W)/ZDEN
+            IF (.NOT.(ZRW.GT.ZPREV.AND.ZRW.LT.REXT)) GOTO 900
+            ZPREV=ZRW
+         ENDDO
+         NWBPS=JNW+1
+         DO J=2,JNW
+            RW(J)=(MAXVAL(ZR(1:JNB,J))-R0W)/ZDEN
+            RRBPS(1:JNB,J)=ZR(1:JNB,J)
+            RZBPS(1:JNB,J)=ZZ(1:JNB,J)
+         ENDDO
+         RW(NWBPS)=REXT
+         ZSCALE=REXT/RW(JNW)
+         DO L=1,JNB
+            RRBPS(L,NWBPS)=R0W+ZSCALE*(ZR(L,JNW)-R0W)
+            RZBPS(L,NWBPS)=RZ0W+ZSCALE*(ZZ(L,JNW)-RZ0W)
+         ENDDO
+C     NDATA=2 USES THE SAME UNIT CONDUCTIVITY AS NATIVE PRESET.
+         CNDRZ(1:JNB,2:NWBPS)=1.
+         CALL BNDSPLW(2)
+         WRITE(*,*) 'NINWALL: FROZEN PLASMA, NEW WALL COUNT=',NWBPS
+         RETURN
+ 900     WRITE(*,*) 'NINWALL: INVALID EXPEQ WALL GEOMETRY'
+         STOP 1
+         END
+C*DECK C2SX03W
+         SUBROUTINE BNDSPLW(JFIRST)
+C     APPLY THE NATIVE BOUNDARY SPLINES TO SELECTED SURFACES ONLY.
          INCLUDE 'DECLAR.inc'
          INCLUDE 'COMDIM.inc'
          INCLUDE 'COMBND.inc'
@@ -20634,7 +20734,7 @@ C   THE (R,Z) POINTS KNOWN ON THE PLASMA BOUNDARY
 C
 C NONCONFORMAL WALL: LOOP IN INVERSED ORDER, TO KEEP TETBPS FOR PLASMA 
 c SURFACE
-         DO 8888 J8=NWBPS,1,-1
+         DO 8888 J8=NWBPS,JFIRST,-1
          DO 1 J1=1,NBPS-1
             ZDR = RRBPS(J1,J8) - BPS( 1)
             ZDZ = RZBPS(J1,J8) - BPS(12)

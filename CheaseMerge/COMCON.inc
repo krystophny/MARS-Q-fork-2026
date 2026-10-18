@@ -119,5 +119,5 @@ C
      I   NIPR,    NOPT,    NPLOT,   NPP,     NPPFUN,  
      I   NPRPSI,  NPROFZ,  NPROPT,  NQMIN,   NRFP,    NRSCAL,  
      I   NSMOOTH, NSTTP,   NSURF,   NSYM,    NTCASE,  
-     I   NTEST,   NTMF0,   NVEXP
+     I   NTEST,   NTMF0,   NVEXP,   NINWALL
 
