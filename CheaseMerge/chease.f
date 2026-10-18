@@ -1675,7 +1675,7 @@ C
              IF (ILIMIT(122).EQ.1) WRITE(*,220) 'NTFM0 '
              IF (ILIMIT(124).EQ.1) WRITE(*,222) 'NRSCAL'
 C
-             STOP
+             STOP 1
 C
          ENDIF
 C

@@ -65,7 +65,7 @@ C
      I             NPPSCUB= 10,                   !      <=  NPPSI + 1
      I             MPSMAX = 80*MFLGMAR + 1*(1-MFLGMAR),
      I             NPSMAX =  1*MFLGMAR + 1*(1-MFLGMAR),
-     I             NPV    = 360,
+     I             NPV    = 640,
      I             NPMGS  = 4,
      I             NPSGS  = 4,
      I             NPTGS  = 4)
