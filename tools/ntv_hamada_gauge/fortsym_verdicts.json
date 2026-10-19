@@ -1,0 +1,87 @@
+{
+  "engine": "fortsym native zero test",
+  "fortsym_revision": "7e8ef7abdd90c49bb5f75e2c119e7d181656bcc6",
+  "checks": [
+    {
+      "label": "H1a",
+      "equation": "xi_perp.B = 0",
+      "verdict": "PROVED"
+    },
+    {
+      "label": "H1b",
+      "equation": "xi^chi = X1 gg1 + X2 gg2",
+      "verdict": "PROVED"
+    },
+    {
+      "label": "H2a",
+      "equation": "J xi^chi = dm2 X1 + dm4 X2",
+      "verdict": "PROVED"
+    },
+    {
+      "label": "H2b",
+      "equation": "J xi^phi = dm5 X1 + dm6 X2",
+      "verdict": "PROVED"
+    },
+    {
+      "label": "H2c",
+      "equation": "div xi_perp = cal_xi_liu divx expansion",
+      "verdict": "PROVED"
+    },
+    {
+      "label": "H3a",
+      "equation": "B.grad theta_H = 2 pi psi'/V_S = bth",
+      "verdict": "PROVED"
+    },
+    {
+      "label": "H3b",
+      "equation": "B.grad zeta_H = q B^theta",
+      "verdict": "PROVED"
+    },
+    {
+      "label": "H4a",
+      "equation": "i B^theta (k+nq) lam_k = -d_k",
+      "verdict": "PROVED"
+    },
+    {
+      "label": "H4b",
+      "equation": "regularised residual = d_k sigma^2/((k+nq)^2+sigma^2)",
+      "verdict": "PROVED"
+    },
+    {
+      "label": "H5",
+      "equation": "kappa.xi_perp = xi_perp.grad B/B + xi_perp.(curl B x B)/B^2",
+      "verdict": "PROVED"
+    },
+    {
+      "label": "H6a",
+      "equation": "h_M = z(b_E+a) + 2(1-z)kappa.xi (force balance)",
+      "verdict": "PROVED"
+    },
+    {
+      "label": "H6b",
+      "equation": "h_id = -z d + (2-3z)k (ideal induction)",
+      "verdict": "PROVED"
+    },
+    {
+      "label": "H6c",
+      "equation": "h_N - h_M = 2(1-z)(b_E - c_p)",
+      "verdict": "PROVED"
+    },
+    {
+      "label": "H6d",
+      "equation": "b_E - c_p = S = -(d + 2k) (ideal)",
+      "verdict": "PROVED"
+    },
+    {
+      "label": "H7",
+      "equation": "Logan weight of lam B = -v d_l(m v lam B) (total d/dt)",
+      "verdict": "PROVED"
+    },
+    {
+      "label": "H8",
+      "equation": "Logan weight of xi_perp = E h_id",
+      "verdict": "PROVED"
+    }
+  ],
+  "failed": []
+}
