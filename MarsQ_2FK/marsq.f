@@ -546,6 +546,7 @@ C           ENDIF
 C
 C     COPY PAMS VARIABLES AND OUTPUT DATA
 C
+      IF (SLEFT.LT.1.E-10) CALL AXISY(Y)
       CALL GETXY(X,Y)
      
       CALL GETXYMORE
@@ -6805,6 +6806,21 @@ C
 C$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
 C-------BOUNDARY CONDITIONS--------A. BONDESON 14.02.91-----------------
 C$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+C
+C     MAGNETIC-AXIS ROWS (NODE 1 AND HALF-CELL 1) WHEN THE GRID REACHES
+C     THE AXIS (SLEFT=0, FIXORI), SEE docs/axis_regularity.md.  EACH
+C     COMPONENT OF HARMONIC M BEHAVES AS S**P NEAR THE AXIS, WITH
+C     P = IAXPWX(KX,|M|) OR IAXPWY(KY,|M|).
+C     X (NODE 1):      P.GT.0  X(1) = 0
+C                      P.EQ.0  X(1) = X(2)  (ZERO SLOPE, EVEN IN S)
+C     Y (HALF-CELL 1): B2, M.NE.0: DIV B = 0 ON THE CELL WITH B3(1) = 0,
+C                      OTHERWISE Y(1) = 0 (ANNIHY, UNIT DIAGONAL).
+C                      COMPONENTS WITH P.LE.0 ARE RECONSTRUCTED AFTER
+C                      THE SOLVE FROM HALF-CELL 2 (AXISY).
+C     THE EARLIER UNIT DIAGONAL WITH ALL COUPLINGS KEPT WAS NEITHER THE
+C     EQUATION NOR A BOUNDARY CONDITION AND IS NOT USED ANY MORE.
+C     AN INNER BOUNDARY SLEFT.GT.0 KEEPS THE EARLIER CONDITIONS.
+C
       SUBROUTINE BOUNDC(
 C     ==================
      &   ASUBM, BSUBM, CSUBM, DSUBM, ESUBM, FSUBM, GSUBM, HSUBM)
@@ -6816,11 +6832,16 @@ C
 C
       INTEGER    NS
       PARAMETER (NS=2)
-      INTEGER    MSROW,LXROW,LYROW,ARM,I
+      INTEGER    MSROW,LXROW,LYROW,ARM,MABS,I
       INTEGER    KX,KY
+      INTEGER    IAXPWX
+      EXTERNAL   IAXPWX
+      LOGICAL    AXIS
 C
+      AXIS = SLEFT.LT.1.E-10
       DO 100 MSROW = 1,MSMAX
-      ARM = ABS(RM(MSROW,NS))
+      MABS = NINT(ABS(RM(MSROW,NS)))
+      ARM = MABS
       IF (ARM.EQ.0) ARM = 2
       LXROW = (MSROW-1)*NXCOMP
       LYROW = (MSROW-1)*NYCOMP
@@ -6831,8 +6852,11 @@ C
      &   ASUBM, BSUBM, CSUBM, DSUBM, ESUBM, FSUBM, GSUBM, HSUBM)
 
       BSUBM(KX+LXROW,KX+LXROW,I) = 1.
+      IF (AXIS.AND.IAXPWX(KX,MABS).EQ.0)
+     &   CSUBM(KX+LXROW,KX+LXROW,I) =-1.
  5    CONTINUE
-      IF (ARM.EQ.1.) CSUBM(KXV1+LXROW,KXV1 +LXROW,I) =-1.
+      IF (.NOT.AXIS.AND.ARM.EQ.1.)
+     &   CSUBM(KXV1+LXROW,KXV1 +LXROW,I) =-1.
 
 C     FREE BC FOR N=0,M=0 J2U&J3U
       IF (ABS(RNTOR).LT.1.E-10.AND.ARM.LT.1.E-10.AND.
@@ -6844,11 +6868,19 @@ C     FREE BC FOR N=0,M=0 J2U&J3U
 
       I = 1
       DO 6 KY = 1,NYCOMP
-C     CALL ANNIHY(KY,MSROW,I,
-C    &   ASUBM, BSUBM, CSUBM, DSUBM, ESUBM, FSUBM, GSUBM, HSUBM)
+      IF (AXIS) CALL ANNIHY(KY,MSROW,I,
+     &   ASUBM, BSUBM, CSUBM, DSUBM, ESUBM, FSUBM, GSUBM, HSUBM)
 
       DSUBM(KY+LYROW,KY+LYROW,I) = 1.
  6    CONTINUE
+
+C     DIV B = 0 ON THE AXIS CELL: (B1(2)-B1(1))/CSH(1) + I*M*B2 + I*N*B3
+      IF (AXIS.AND.MABS.GT.0) THEN
+         FSUBM(KYB2+LYROW,KXB1+LXROW,I) = -1./CSH(I)
+         GSUBM(KYB2+LYROW,KXB1+LXROW,I) =  1./CSH(I)
+         DSUBM(KYB2+LYROW,KYB2+LYROW,I) = (0.,1.)*RM(MSROW,NS)
+         DSUBM(KYB2+LYROW,KYB3+LYROW,I) = (0.,1.)*RNTOR
+      ENDIF
 
       DO 10 I=2,NFIT
       CALL ANNIHX(KXV1,MSROW,I,
@@ -6860,6 +6892,98 @@ C    &   ASUBM, BSUBM, CSUBM, DSUBM, ESUBM, FSUBM, GSUBM, HSUBM)
 
  100  CONTINUE
 
+      RETURN
+      END
+C
+*DECK AXISY
+C$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+C-------REGULAR AXIS HALF-CELL OF THE SOLUTION--------------------------
+C$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+C     THE BLOCK-TRIDIAGONAL STORAGE CANNOT COUPLE Y(1) TO Y(2), SO A
+C     COMPONENT THAT IS FINITE (P=0) OR SINGULAR (P<0) AT THE AXIS IS
+C     CLOSED BY Y(1)=0 IN BOUNDC AND RECONSTRUCTED HERE FROM HALF-CELL 2
+C     WITH ITS REGULAR POWER LAW Y = C*S**P.  B2 HAS ITS OWN ROW.
+C
+      SUBROUTINE AXISY(Y)
+C     ===================
+      USE DIMENSIM
+      USE GLOBALM
+      COMPLEX*16 Y(NYCOMP,MSMAX,*)
+      INTEGER    MS,KY,MABS,IP
+      INTEGER    IAXPWY
+      EXTERNAL   IAXPWY
+C
+      IF (NR.LT.2) RETURN
+      DO 20 MS = 1,MSMAX
+      MABS = NINT(ABS(RM(MS,2)))
+      DO 10 KY = 1,NYCOMP
+      IF (KY.EQ.KYB2) GOTO 10
+      IP = IAXPWY(KY,MABS)
+      IF (IP.LE.0) Y(KY,MS,1) = Y(KY,MS,2)*(CSM(1)/CSM(2))**IP
+ 10   CONTINUE
+ 20   CONTINUE
+      RETURN
+      END
+C
+*DECK IAXPWX
+C$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+C-------AXIS POWER OF AN X COMPONENT (INTEGER MESH)---------------------
+C$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+C     X ~ S**P AT THE AXIS FOR POLOIDAL HARMONIC |M| = MABS.  VECTORS
+C     ARE J*A.GRAD(S), J*A.GRAD(CHI), J*A.GRAD(PHI) (J ~ S), DISPLACE-
+C     MENT/VELOCITY-LIKE V1, X1, W1 ARE A.GRAD(S), COVARIANT A2L, A3L ARE
+C     A.DR/DCHI, A.DR/DPHI; THE REMAINING COMPONENTS ARE SCALARS.
+C
+      INTEGER FUNCTION IAXPWX(KX,MABS)
+C     ================================
+      USE GLOBALM
+      INTEGER KX,MABS
+C
+      IF (KX.EQ.KXV1.OR.KX.EQ.KXX1.OR.KX.EQ.KXW1.OR.
+     &    KX.EQ.KXJ2U.OR.KX.EQ.KXJRE2) THEN
+         IAXPWX = MABS-1
+         IF (MABS.EQ.0) IAXPWX = 1
+      ELSEIF (KX.EQ.KXJ3.OR.KX.EQ.KXJRE3) THEN
+         IAXPWX = MABS+1
+      ELSEIF (KX.EQ.KXB1.OR.KX.EQ.KXJ2L.OR.KX.EQ.KXJRE2L.OR.
+     &        KX.EQ.KXB2L) THEN
+         IAXPWX = MABS
+         IF (MABS.EQ.0) IAXPWX = 2
+      ELSE
+C        KXB3L, KXPD, KXPED, KXJRE, KXDPHI
+         IAXPWX = MABS
+      ENDIF
+      RETURN
+      END
+C
+*DECK IAXPWY
+C$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+C-------AXIS POWER OF A Y COMPONENT (HALF MESH)-------------------------
+C$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+C     Y ~ S**P AT THE AXIS FOR POLOIDAL HARMONIC |M| = MABS.  V2, X2, W2
+C     ARE BINORMAL COMPONENTS ALONG J*(B X GRAD S)/B**2 ~ S, SO THEY ARE
+C     SINGULAR (1/S) FOR |M|=1; P.LE.0 MEANS FINITE OR ENERGY-FINITE.
+C
+      INTEGER FUNCTION IAXPWY(KY,MABS)
+C     ================================
+      USE GLOBALM
+      INTEGER KY,MABS
+C
+      IF (KY.EQ.KYV2.OR.KY.EQ.KYX2.OR.KY.EQ.KYW2) THEN
+         IAXPWY = MABS-2
+         IF (MABS.EQ.0) IAXPWY = 0
+      ELSEIF (KY.EQ.KYB2) THEN
+         IAXPWY = MABS-1
+         IF (MABS.EQ.0) IAXPWY = 1
+      ELSEIF (KY.EQ.KYB3) THEN
+         IAXPWY = MABS+1
+      ELSEIF (KY.EQ.KYJ1.OR.KY.EQ.KYJRE1) THEN
+         IAXPWY = MABS
+         IF (MABS.EQ.0) IAXPWY = 2
+      ELSE
+C        KYV3, KYX3, KYW3, KYPR, KYPE, KYPP, KYPPARA, KYPPERP, KYRHOP
+         IAXPWY = MABS
+      ENDIF
       RETURN
       END
 C
@@ -19184,6 +19308,10 @@ C     IF (IPDIVB.EQ.0.AND.ABS(RNTOR).GT.0.) THEN
          ENDDO
          ENDDO
 
+C        WHEN THE GRID REACHES THE AXIS, BOUNDC/AXISY ALREADY GIVE A
+C        REGULAR HALF-CELL 1 (docs/axis_regularity.md); COPYING B3U(2)
+C        INTO B3U(1) WOULD BREAK B3 ~ S**(|M|+1) THERE.
+         IF (SLEFT.GE.1.E-10) THEN
          DO MS=1,MSMAX
             IF (ABS(RM(MS,2)).GT.0) THEN
                B3U(1,MS) = B3U(2,MS)
@@ -19194,6 +19322,7 @@ C     IF (IPDIVB.EQ.0.AND.ABS(RNTOR).GT.0.) THEN
                B2U(1,MS) = B2U(3,MS)
             ENDIF
          ENDDO
+         ENDIF
       ENDIF
 C
       
