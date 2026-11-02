@@ -31,7 +31,8 @@ class PassingNormalizationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(dir=os.environ.get('TMPDIR', ROOT)) as tmp:
             work = Path(tmp)
             routines = work / 'passing.f'
-            routines.write_text(production_routine('KIA_PASS') + production_routine('KIA_PASS0') +
+            routines.write_text(production_routine('KIA_PASS') + production_routine('KPASSROOTS') +
+                                production_routine('KIA_PASS0') +
                                 "      SUBROUTINE SET_TEST_OMEGA()\n"
                                 "      IMPLICIT NONE\n"
                                 "      INCLUDE 'compam.inc'\n"

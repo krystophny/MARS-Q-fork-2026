@@ -17,7 +17,7 @@ class EnergyUnderflow(unittest.TestCase):
     def test_native_trapped_and_passing_integrals(self):
         source_root = Path(os.environ.get('MARS_ORACLE_SOURCE', ROOT))
         source = (source_root / 'MarsQ_2FK/anisotropic.f').read_text()
-        names = ('KIA_TRAP', 'KIA_PASS', 'KENERGYMESH', 'KTRAPDRIFTAT')
+        names = ('KIA_TRAP', 'KIA_PASS', 'KPASSROOTS', 'KENERGYMESH', 'KTRAPDRIFTAT')
         kernels = []
         for name in names:
             start = re.search(rf'^      SUBROUTINE {name}(?:\(|\s*$)', source, re.M).start()

@@ -83,7 +83,7 @@ def run_kernel(test, nr, grad, nu, jcell, dslope):
     source_root = Path(os.environ.get('MARS_ORACLE_SOURCE', ROOT))
     source = (source_root / 'MarsQ_2FK/anisotropic.f').read_text()
     kernels = []
-    for name in ('KIA_TRAP', 'KENERGYMESH', 'KTRAPDRIFTAT'):
+    for name in ('KIA_TRAP', 'KPASSROOTS', 'KENERGYMESH', 'KTRAPDRIFTAT'):
         found = re.search(rf'^      SUBROUTINE {name}(?:\(|\s*$)', source, re.M)
         if found is None and name == 'KTRAPDRIFTAT':
             continue        # sources that freeze omega_D do not read the table
