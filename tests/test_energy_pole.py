@@ -57,7 +57,8 @@ class EnergyPole(unittest.TestCase):
         source = (source_root / 'MarsQ_2FK/anisotropic.f').read_text()
         kernels = []
         for name in re.findall(r'^      SUBROUTINE (K\w+)', source, re.M):
-            if name in ('KIA_TRAP', 'KIA_PASS', 'KENERGYMESH', 'KTRAPDRIFTAT'):
+            if name in ('KIA_TRAP', 'KIA_PASS', 'KPASSROOTS', 'KENERGYMESH',
+                        'KTRAPDRIFTAT'):
                 start = re.search(rf'^      SUBROUTINE {name}(?:\(|\s*$)', source, re.M).start()
                 end = source.index('END SUBROUTINE ' + name, start)
                 kernels.append(source[start:end] + 'END SUBROUTINE ' + name + '\n')
@@ -143,6 +144,29 @@ class EnergyPole(unittest.TestCase):
             with self.subTest(kind=kind, P=p):
                 self.assertLess(abs(value.real / expected.real - 1), 1e-3)
                 self.assertLess(abs(value.imag / expected.imag - 1), 1e-3)
+
+    def test_constant_rate_bounce_harmonic_keeps_precession(self):
+        # INUTYPE=0, ell=-1, NDB=1: the denominator is
+        # P*sqrt(x)+N*DRIFT*x+N*OMEGAE-i*nu with P = OMEGAB*ELL*SQRT(2); the
+        # precession N*DRIFT*x moves and adds roots in x.
+        nu, ntor = 2e-4, -3.0
+        cases = [  # OMEGAB, DRIFT, OMEGAE: Re(OMEGAN)<0, then >0 with a drift root
+            (2.0, -1.0 / 6.0, -1.0 / 3.0),
+            (-0.5, 1.0 / 6.0, -1.0 / 3.0),
+        ]
+        sets = [([1, NEPK, 0, 0, -1.0, ntor, 0.0, omegab, 0.0, 1.0, omegae, nu, 0.0, 0.0],
+                 [(drift, 1.0)]) for omegab, drift, omegae in cases]
+        for (omegab, drift, omegae), value in zip(cases, self.run_sets(sets)):
+            p, a, base = -omegab * np.sqrt(2.0), ntor * drift, ntor * omegae
+            den = lambda x, p=p, a=a, base=base: p * np.sqrt(x) + a * x + base - 1j * nu
+            roots = np.roots([a, p, base])
+            poles = [(s * s, nu / abs(p / (2 * s) + a))
+                     for s in roots[np.isreal(roots)].real if s > 0]
+            self.assertTrue(poles)
+            expected = exact(lambda x: numerator(x, -2.0, ntor, base), den, poles)
+            print(f'INUTYPE=0 ell=-1 P {p:.4f} poles {poles}: MARS={value} exact={expected}')
+            with self.subTest(omegab=omegab, drift=drift):
+                self.assertLess(abs(value / expected - 1), 1e-3)
 
     def test_energy_independent_rate_unchanged(self):
         # INUTYPE=0 keeps its analytic pole subtraction (constant nu)

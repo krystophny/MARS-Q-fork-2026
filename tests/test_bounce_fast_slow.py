@@ -96,11 +96,13 @@ class BounceFastSlow(unittest.TestCase):
         radial_match = re.search(r"^ +SUBROUTINE +KTRAPDRIFTAT\b.*?^ +END SUBROUTINE +KTRAPDRIFTAT\b",
                                  anisotropic, re.M | re.S | re.I)
         radial = radial_match.group() if radial_match else ""
+        roots = re.search(r"^ +SUBROUTINE +KPASSROOTS\b.*?^ +END SUBROUTINE +KPASSROOTS\b",
+                          anisotropic, re.M | re.S | re.I).group()
         toolbox = (NATIVE / "ToolBox.f90").read_text().split("    contains", 1)[0]
         with tempfile.TemporaryDirectory(dir=os.environ.get("TMPDIR")) as tmp:
             work = Path(tmp)
             (work / "toolbox_declarations.f90").write_text(toolbox + "end module\n")
-            (work / "native.f").write_text(fast + "\n" + slow + "\n" + radial + "\n" +
+            (work / "native.f").write_text(fast + "\n" + slow + "\n" + radial + "\n" + roots + "\n" +
                 "      SUBROUTINE SET_TEST_OMEGA()\n"
                 "      IMPLICIT NONE\n      INCLUDE 'compam.inc'\n"
                 "      OMEGA=(0D0,0D0)\n      END\n"

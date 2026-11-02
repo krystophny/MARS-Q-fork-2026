@@ -100,6 +100,7 @@ class PassingDriftTests(unittest.TestCase):
             work = Path(tmp)
             routines = work / 'passing.f'
             routines.write_text(production_routine('KIA_PASS') +
+                                production_routine('KPASSROOTS') +
                                 production_routine('KENERGYMESH') +
                                 "      SUBROUTINE SET_TEST_OMEGA()\n"
                                 "      IMPLICIT NONE\n"

@@ -59,7 +59,7 @@ def run_kernel(test, case):
     source_root = Path(os.environ.get('MARS_ORACLE_SOURCE', ROOT))
     source = (source_root / 'MarsQ_2FK/anisotropic.f').read_text()
     kernels = []
-    for name in ('KIA_TRAP', 'KENERGYMESH', 'KTRAPDRIFTAT'):
+    for name in ('KIA_TRAP', 'KPASSROOTS', 'KENERGYMESH', 'KTRAPDRIFTAT'):
         found = re.search(rf'^      SUBROUTINE {name}(?:\(|\s*$)', source, re.M)
         test.assertIsNotNone(found, name)
         start = found.start()
