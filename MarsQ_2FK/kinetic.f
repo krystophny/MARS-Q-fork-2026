@@ -1486,8 +1486,8 @@ C     FILL IN MATRICES FOR KXDPHI FOR NEUTRALITY EQUATION
  
          ZV2M = (CS(I)/CSM(I-1))**IEXV2
          ZV2P = (CS(I)/CSM(I  ))**IEXV2
-         ZB3M = (CSM(I-1)/CS(I))**IEXB3
-         ZB3P = (CSM(I)  /CS(I))**IEXB3
+         ZB3M = (CS(I)/CSM(I-1))**IEXB3
+         ZB3P = (CS(I)/CSM(I  ))**IEXB3
 
          DO MROW=1,MSMAX
             LXROW = (MROW-1)*NXCOMP
