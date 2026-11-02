@@ -1,9 +1,11 @@
-"""Analytic energy integrals of the fast kinetic paths (KFASTRUN=1).
+"""Analytic energy integrals of the fast kinetic paths (KFASTRUN=1): plasmax and plasmay.
 
 KI_PRECESSION evaluates J(W) = int_0^inf x**2.5 exp(-x)/(x+W) dx as
 2*sqrt(pi)*(3/8 - W/4 + W**2/2 - W**2*plasmax(W, a)), a = -RTMP.  For W > 0 there is
 no resonance and J is real for either sign of a and of a zero imaginary part.
-It is compared with scipy quadrature.
+KI_BOUNCE uses plasmay(y) = y*int_0^inf exp(-t**2)/(t+y) dt, whose real-axis
+integral is the reference off the negative real axis.  Both are compared with
+scipy quadrature.
 """
 import cmath
 import math
@@ -69,6 +71,18 @@ class PlasmaFunctions(NativeTest):
             exact = quad(lambda x: x**2.5*math.exp(-x)/(x+w), 0, math.inf, epsabs=0, epsrel=1e-12)[0]
             with self.subTest(w=w, a=a, zero=zero):
                 self.assertLess(abs(complex(re_, im) - exact), 1e-4*exact)
+
+    def test_bounce_function_on_both_branches(self):
+        rows = [list(map(float, r[1:])) for r in self.rows if r[0] == "Y"]
+        self.assertEqual(len(rows), len(YS))
+        for yr, yi, vr, vi in rows:
+            y = complex(yr, yi)
+            part = [quad(lambda t, k=k: (cmath.exp(-t*t)/(t+y)).real if k == 0 else
+                         (cmath.exp(-t*t)/(t+y)).imag, 0, 12, points=[-y.real] if y.real < 0 else None,
+                         limit=400, epsabs=1e-15, epsrel=1e-12)[0] for k in (0, 1)]
+            exact = y*complex(*part)
+            with self.subTest(y=y):
+                self.assertLess(abs(complex(vr, vi) - exact), 2e-6*abs(exact), (complex(vr, vi), exact))
 
 
 if __name__ == "__main__":
