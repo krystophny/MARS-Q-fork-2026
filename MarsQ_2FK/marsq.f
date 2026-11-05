@@ -20633,38 +20633,9 @@ C     ENDDO
 C     STEP 2.2: COMPUTE MATRIX ELEMENTS
       IF (KCHECK.GE.1) WRITE(*,*) 'MAX_EC,IBNM_EC=',MAX_EC,IBNM_EC
 
-      ECA = (0.,0.)
-
-!$OMP PARALLEL DO DEFAULT(SHARED)
-!$OMP& PRIVATE(MS,KS,J1,J2,J,CTMP1,CTMP2,TEMP1,TEMP2)
-!$OMP& SCHEDULE(DYNAMIC)
-      DO MS=M1_EC-M1+1,M2_EC-M1+1
-      IF (KCHECK.GE.2) WRITE(*,*) 'MS=',MS
-      DO KS=M1_EC-M1+1,M2_EC-M1+1
-         DO J1=1,NCHI
-         DO J2=1,NCHI
-            CTMP1 = EXP((RM(KS,2)*(J1-1)-RM(MS,2)*(J2-1))*HCHI*CI)
-            TEMP1 = (ECR2(J2)-ECR1(J1))**2 + (ECZ2(J2)-ECZ1(J1))**2
-            DO J=1,NP_EC
-               TEMP2 = TEMP1 +
-     &                 2.*ECR1(J1)*ECR2(J2)*(1.-ECPC(J))
-               TEMP2 = TEMP2*SQRT(TEMP2)
-               CTMP2 = (ECDSDR(J2)*(ECR1(J1)*(ECZ1(J1)-ECZ2(J2))*
-     &                              ECPC(J)*ECPCN(J)*RM(KS,2)/RNTOR + 
-     &                              (ECR1(J1)*ECDZDC(J1)+
-     &                               (ECZ2(J2)-ECZ1(J1))*ECDRDC(J1))*
-     &                              ECPS(J)*ECPSN(J)*CI) + 
-     &                  ECDSDZ(J2)*(ECR1(J1)*ECPCN(J)*(-ECR1(J1)+
-     &                              ECR2(J2)*ECPC(J))*RM(KS,2)/RNTOR -
-     &                              ECR2(J2)*ECPS(J)*ECPSN(J)*
-     &                              ECDRDC(J1)*CI))*CTMP1/TEMP2
-               ECA(MS,KS) = ECA(MS,KS) + CTMP2
-            ENDDO
-         ENDDO
-         ENDDO
-      ENDDO
-      ENDDO
-!$OMP END PARALLEL DO
+      CALL ESC_RESPONSE(NCHI,NP_EC,MAX_EC,M1_EC-M1+1,M2_EC-M1+1,
+     &     RM(1:MAX_EC,2),RNTOR,ECR1,ECZ1,ECR2,ECZ2,ECDRDC,ECDZDC,
+     &     ECDSDR,ECDSDZ,ECPC,ECPS,ECPCN,ECPSN,HCHI,ECA)
       TEMP1 = HCHI**2*HPHI/8.0/PI**2
       ECA   =-ECA*TEMP1*(VCS(IFEED+1)-VCS(IFEED-1))*0.5
 
@@ -20746,6 +20717,68 @@ C     SAVE EQUIVALENT SURFACE CURRENT INTO A FILE
       
       DEALLOCATE(BNM_EC,J2U_EC)
 
+      RETURN
+      END
+
+C$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+C     BS_ESC RESPONSE MATRIX ECA(MS,KS), UNSCALED. THE POINT-PAIR KERNEL
+C     DEPENDS ON THE HARMONIC PAIR ONLY THROUGH THE FOURIER PHASES AND A
+C     FACTOR RMODE(KS), SO IT IS SUMMED OVER PHI ONCE (A, B) AND PROJECTED
+C     BY TWO MATRIX PRODUCTS INSTEAD OF A PHI SUM PER HARMONIC PAIR.
+C$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+      SUBROUTINE ESC_RESPONSE(NCHI,NP,NM,MLO,MHI,RMODE,RNTOR,
+     &     R1,Z1,R2,Z2,DRDC,DZDC,DSDR,DSDZ,PC,PS,PCN,PSN,HCHI,ECA)
+      IMPLICIT NONE
+      INTEGER NCHI,NP,NM,MLO,MHI,J,J1,J2,K
+      REAL*8 RMODE(NM),RNTOR,HCHI
+      REAL*8 R1(NCHI),Z1(NCHI),R2(NCHI),Z2(NCHI),DRDC(NCHI),
+     &       DZDC(NCHI),DSDR(NCHI),DSDZ(NCHI)
+      REAL*8 PC(NP),PS(NP),PCN(NP),PSN(NP)
+      COMPLEX*16 ECA(NM,NM)
+      REAL*8 T1,T2,SA,SB
+      REAL*8,DIMENSION(:,:),ALLOCATABLE::A,B
+      COMPLEX*16,DIMENSION(:,:),ALLOCATABLE::P,Q,E
+      COMPLEX*16 CI
+      PARAMETER (CI=(0.D0,1.D0))
+
+      ALLOCATE(A(NCHI,NCHI),B(NCHI,NCHI))
+!$OMP PARALLEL DO DEFAULT(SHARED) PRIVATE(J1,J2,J,T1,T2,SA,SB)
+      DO J2=1,NCHI
+      DO J1=1,NCHI
+         T1 = (R2(J2)-R1(J1))**2 + (Z2(J2)-Z1(J1))**2
+         SA = 0.D0
+         SB = 0.D0
+         DO J=1,NP
+            T2 = T1 + 2.*R1(J1)*R2(J2)*(1.-PC(J))
+            T2 = T2*SQRT(T2)
+            SA = SA + (DSDR(J2)*R1(J1)*(Z1(J1)-Z2(J2))*PC(J)*PCN(J)
+     &              + DSDZ(J2)*R1(J1)*PCN(J)*(-R1(J1)+R2(J2)*PC(J)))/T2
+            SB = SB + (DSDR(J2)*(R1(J1)*DZDC(J1)+(Z2(J2)-Z1(J1))*
+     &                 DRDC(J1)) - DSDZ(J2)*R2(J2)*DRDC(J1))
+     &              *PS(J)*PSN(J)/T2
+         ENDDO
+         A(J1,J2) = SA/RNTOR
+         B(J1,J2) = SB
+      ENDDO
+      ENDDO
+!$OMP END PARALLEL DO
+
+      ALLOCATE(P(NCHI,MLO:MHI),Q(NCHI,MLO:MHI),E(NCHI,MLO:MHI))
+      DO K=MLO,MHI
+      DO J1=1,NCHI
+         P(J1,K) = EXP( RMODE(K)*(J1-1)*HCHI*CI)
+         Q(J1,K) = EXP(-RMODE(K)*(J1-1)*HCHI*CI)
+      ENDDO
+      ENDDO
+C     E(J2,KS) = SUM_J1 P(J1,KS) (RMODE(KS) A(J1,J2) + I B(J1,J2))
+      E = MATMUL(TRANSPOSE(A),P)
+      DO K=MLO,MHI
+         E(:,K) = RMODE(K)*E(:,K)
+      ENDDO
+      E = E + CI*MATMUL(TRANSPOSE(B),P)
+      ECA = (0.,0.)
+      ECA(MLO:MHI,MLO:MHI) = MATMUL(TRANSPOSE(Q),E)
+      DEALLOCATE(A,B,P,Q,E)
       RETURN
       END
       
