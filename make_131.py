@@ -59,7 +59,7 @@ b.text(ibnm + .5, 8e-6, 'IBNM', fontsize=7)
 b.set_ylim(1e-10, 1e-4)
 b.set_xlabel('radial grid surface index (0 = magnetic axis)')
 b.set_ylabel(r'$|b_{1,m}^{\rm 0668492} - b_{1,m}^{\rm PR}|$ (MARS normalised units)')
-b.set_title('(b) change of the vacuum field by the fix')
+b.set_title('(b) vacuum field before minus with this PR')
 b.text(0.02, 0.03, ('master before #103 and this PR: identical, all $m$ and surfaces' if same == 0 else f'master before #103 vs this PR: max difference {same:.1e}'),
        transform=b.transAxes, fontsize=7.5)
 b.legend(fontsize=8, loc='upper left', ncol=4); b.grid(alpha=.3, which='both')
