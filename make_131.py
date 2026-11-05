@@ -39,7 +39,7 @@ for lab, name, col, mk, ls in VAR:
     a.semilogy(ms, err, color=col, marker=mk, ls=ls, mfc='none' if mk != 'x' else None,
                label=f"error, {name}: misfit {r['misfit']:.4f}")
 a.semilogy(sorted(presc), [abs(presc[m]) for m in sorted(presc)], 'k*', ms=11, ls='none',
-           label=r'prescribed $|b_{1,m}|$ (BS_ESC input)')
+           label=r'prescribed $|b_{1,m}|$ (zero for other $m$)')
 a.set_xlabel('poloidal harmonic $m$')
 a.set_ylabel(r'$|b_{1,m}|$ or $|b_{1,m}^{\rm vac} - b_{1,m}^{\rm presc}|$ on IBNM (MARS normalised units)')
 a.set_title('(a) normal field returned on IBNM, $n=1$'); a.set_ylim(2e-8, 1e-1)
@@ -58,7 +58,7 @@ b.text(npl - .5, 8e-6, 'plasma boundary', fontsize=7, ha='right')
 b.text(ibnm + .5, 8e-6, 'IBNM', fontsize=7)
 b.set_ylim(1e-10, 1e-4)
 b.set_xlabel('radial grid surface index (0 = magnetic axis)')
-b.set_ylabel(r'$|b_{1,m}^{\rm 0668492} - b_{1,m}^{\rm PR}|$ (MARS normalised units)')
+b.set_ylabel(r'$|b_{1,m}^{\rm before} - b_{1,m}^{\rm PR}|$ (MARS normalised units)')
 b.set_title('(b) vacuum field before minus with this PR')
 b.text(0.02, 0.03, ('master before #103 and this PR: identical, all $m$ and surfaces' if same == 0 else f'master before #103 vs this PR: max difference {same:.1e}'),
        transform=b.transAxes, fontsize=7.5)
