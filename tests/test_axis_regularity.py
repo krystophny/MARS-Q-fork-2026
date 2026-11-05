@@ -28,7 +28,16 @@ integer KXV1,KXB1,KXJ2U,KXJ3,KXJ2L,KXX1,KXPD,KXPED,KXW1,KXJRE,KXB2L,KXB3L, &
 integer KYV2,KYV3,KYB2,KYB3,KYJ1,KYPR,KYPPERP,KYPPARA,KYPE,KYPP,KYRHOP, &
         KYX2,KYX3,KYW2,KYW3,KYJRE1
 real*8 RNTOR,SLEFT
+integer :: KPERTREAD = 0
 real*8,allocatable :: RM(:,:),CS(:),CSM(:),CSH(:)
+end module
+module feedbackm
+implicit none
+integer :: INCFEED = 0
+end module
+module kineticm
+implicit none
+integer :: KJPKEY = 0
 end module
 '''
 
