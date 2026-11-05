@@ -6,6 +6,7 @@ C
       SUBROUTINE TORQJXB
 C     ==========================================================
       USE DIMENSIM
+      USE FEEDBACKM, ONLY: KFEEDIAMP
       USE GLOBALM
       USE GVACUUMM
       USE RCOMDM  
@@ -82,6 +83,8 @@ C     FIRST COMPUTE FLUX SURFACE AVERAGED TORQUE DENSITY
       DO I=1,NR
          TORQUEJXB(I) = TORQUEJXB(I)*REAL(JACOBM(I,1))
       ENDDO
+C     OUTPUT AMPLITUDES ARE PER FEEDI, SEE KFEEDIAMP IN NEWRUN.INC
+      TORQUEJXB = TORQUEJXB*DBLE(KFEEDIAMP)**2
 
 C     SMOOTHING
       DO I=1,5
@@ -129,7 +132,7 @@ C     RE-NORMALISATION
          TMP = VRRM(I,J)**2/VRJAM(I,J)*TMP1*CONJG(TMP2)
          TORQ2 = TORQ2 + DREAL(TMP)
       ENDDO
-      TORQ2 = TORQ2*RCHIH*PI 
+      TORQ2 = TORQ2*RCHIH*PI*DBLE(KFEEDIAMP)**2
       
       RCHIH = R0EXP**3*B0EXP**2/4.0E-7/PI
       WRITE(*,110) TORQ2,TORQ2*TORQFAC
@@ -208,7 +211,7 @@ C     COMPUTE CROSS-COUPLING TORQUE ELEMENTS FROM A TO B
             TMP  =-0.5*(TMP1+TMP2) + CONJG(J1LB(I,MS))*B2LA(I,MS)
             TORQCROSSAB(I) = TORQCROSSAB(I) + TMP 
          ENDDO
-         TORQCROSSAB(I) = TORQCROSSAB(I)/2.
+         TORQCROSSAB(I) = TORQCROSSAB(I)/2.*DBLE(KFEEDIAMP)**2
       ENDDO
       
 C     COMPUTE CROSS-COUPLING TORQUE ELEMENTS FROM B TO A        
@@ -219,7 +222,7 @@ C     COMPUTE CROSS-COUPLING TORQUE ELEMENTS FROM B TO A
             TMP  =-0.5*(TMP1+TMP2) + CONJG(J1LA(I,MS))*B2LB(I,MS)
             TORQCROSSBA(I) = TORQCROSSBA(I) + TMP 
          ENDDO
-         TORQCROSSBA(I) = TORQCROSSBA(I)/2.
+         TORQCROSSBA(I) = TORQCROSSBA(I)/2.*DBLE(KFEEDIAMP)**2
       ENDDO
       
 C     SMOOTHING
@@ -291,6 +294,7 @@ C$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
       SUBROUTINE TORQREY
 C     ==========================================================
       USE DIMENSIM
+      USE FEEDBACKM, ONLY: KFEEDIAMP
       USE GLOBALM
       USE RCOMDM  
       USE TORQUEM
@@ -570,6 +574,8 @@ C             ALSO COMPUTE MHD INDUCED PARTICLE TRANSPORT TERM
       DO I=1,NR
          TORQUEREY(I) = -TORQUEREY(I)*0.5*RHOM(I)/REAL(JACOBM(I,1))
       ENDDO
+      TORQUEREY = TORQUEREY*DBLE(KFEEDIAMP)**2
+      DPTRANMHD = DPTRANMHD*DBLE(KFEEDIAMP)**2
 
       DO I=1,NR
          TORQUEREY(I) = TORQUEREY(I)*REAL(JACOBM(I,1))
@@ -792,6 +798,7 @@ C$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
          SUBROUTINE TORQERGO
 C     ==========================================================
          USE DIMENSIM
+         USE FEEDBACKM, ONLY: KFEEDIAMP
          USE GLOBALM
          USE RCOMDM  
          USE TORQUEM
@@ -877,6 +884,7 @@ C     COMPUTE TORQUE DENSITY AT HALF-INTEGER MESH AND ERGODIZATION DRIVEN PARTIC
                TMP = ABS(TMP)**2
                BABS2(I) = BABS2(I) + TMP
             END DO
+            BABS2(I) = BABS2(I)*DBLE(KFEEDIAMP)**2
             !BABS2(I) = BABS2(I) / REAL(JACOBM(I,1))/2. 
             DST(I) = 2.*PI*QM(I) * BABS2(I)
          
@@ -1001,6 +1009,7 @@ C
       SUBROUTINE TORQNTV
 C     ==========================================================
       USE DIMENSIM
+      USE FEEDBACKM, ONLY: KFEEDIAMP
       USE GLOBALM
       USE RCOMDM  
       USE TORQUEM
@@ -1068,6 +1077,10 @@ C     DVDSM = DVDSM*VOLTOT*2.0
 C        WRITE(*,*) 'CALLING KDWKDENSITY FOR NTV TORQUE'
 C        CALL KDWKDENSITY
       ENDIF
+C     ALL KNTV ROUTES ARE WRITTEN FOR PEAK AMPLITUDES
+      TORQUENTV  = TORQUENTV *DBLE(KFEEDIAMP)**2
+      TORQUENTVI = TORQUENTVI*DBLE(KFEEDIAMP)**2
+      TORQUENTVE = TORQUENTVE*DBLE(KFEEDIAMP)**2
 C     SET TORQUENTV=0 WITHIN RESISTIVE LAYER
       IF (DELRATS.GT.0..AND.DELRATS.LT.1..AND.NRATSURF.GT.0) THEN
       DO I=1,NR

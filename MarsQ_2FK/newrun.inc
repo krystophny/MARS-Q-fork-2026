@@ -23,7 +23,8 @@ C-----------------------------------------------------------------------
      R          PHIPHASE,       DTRAMPUI,  RAN_STD,VFMAX, FINIC, 
      I		INCFEED, NCOIL,	NSENS,	   IPSIF,  KCOILCURR,  
      I		IFEED,	KKF,    ISENS,     IDYNAM, 
-     I          NCOILT, NSENST, IBOUT,     IBOUT2, KREADECA
+     I          NCOILT, NSENST, IBOUT,     IBOUT2, KREADECA,
+     I          KFEEDIAMP
 C-----------------------------------------------------------------------
       NAMELIST /KINETIC/
      C      ATAU,ALTAU,
@@ -296,6 +297,17 @@ C
 C  FINIC = IN/IC = FRACTION OF N-TH COMPONENT OF RMP COIL CURRENT OUT OF
 C                  THE ACTUAL COIL CURRENT. 
 C                  USED ONLY FOR OUTPUT <BPLASMA_MARSF*>
+C
+C  KFEEDIAMP = MEANING OF FEEDI (AND OF INPUT_BNM, CURHARMO, WHICH
+C              FEEDI SCALES) FOR A COIL CURRENT I0*COS(N*PHI):
+C              1: FEEDI = I0, COS-SIN (PEAK) COEFFICIENT,
+C                 COIL CURRENT = RE[FEEDI*EXP(I*N*PHI)]
+C              2: FEEDI = I0/2, +N COMPLEX FOURIER COEFFICIENT,
+C                 COIL CURRENT = FEEDI*EXP(I*N*PHI) + C.C. (DEFAULT)
+C              FIELDS, DISPLACEMENTS AND DWK IN THE OUTPUT ARE PER
+C              FEEDI; THE PHYSICAL PEAK IS KFEEDIAMP TIMES THE OUTPUT.
+C              JXB, REYNOLDS, NTV (ALL KNTV) AND ERGODIC TORQUES AND
+C              THE TRANSPORT FLUXES CARRY KFEEDIAMP**2 (PHYSICAL).
 
 C=======================================================================
 C  DESCRIPTION OF NAMELIST VARIABLES: KINETIC

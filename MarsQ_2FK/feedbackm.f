@@ -77,7 +77,7 @@ C$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
       INTEGER   NCOIL,  NSENS,  INCFEED,        IWO,    
      I          IFEED,  KKF,    ISENS(0:NSENS0),IDYNAM,
      I          IPSIF,  ISWITCH,NCOILT,         NSENST,
-     I          IBOUT,  IBOUT2, KREADECA
+     I          IBOUT,  IBOUT2, KREADECA,       KFEEDIAMP
       REAL*8    RL0,    BTCHI,  TAUF,           PHISIGN,
      R          GAINA(NCOIL0),  GAINP(NCOIL0),  PHIPHASE,
      R          HGAINA(NCOIL0), HGAINP(NCOIL0),

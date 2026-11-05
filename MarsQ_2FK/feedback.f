@@ -65,6 +65,7 @@ C     --- DEFAULT NAMELIST VALUES
       IDYNAM  = 0
       KKF     =-1
       KREADECA= 0
+      KFEEDIAMP = 2
       IBOUT   = 2
       IBOUT2  = 3
       RAN_STD =-1.0
@@ -104,6 +105,7 @@ C     ===================
          WRITE(*,90) INCFEED
          STOP 'INCFEED'
       ENDIF
+      IF (KFEEDIAMP.NE.1.AND.KFEEDIAMP.NE.2) STOP 'KFEEDIAMP'
  90   FORMAT('NO SUCH OPTION FOR FEEDBACK, INCFEED=',I2)
 
       IF (INCFEED.EQ.0) GOTO 1090
